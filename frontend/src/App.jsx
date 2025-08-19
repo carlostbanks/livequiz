@@ -64,6 +64,12 @@ function App() {
             });
           }
         }, 2000);
+      } else if (data.type === 'error') {
+        // Handle errors - just show feedback, don't advance question
+        setTranscription('');
+        setFeedback(data.message);
+        // Clear error after 3 seconds so user can try again
+        setTimeout(() => setFeedback(''), 3000);
       }
     };
     
@@ -75,24 +81,53 @@ function App() {
   }, [currentQuestion, score, answers]);
 
   const startRecording = async () => {
+    if (isRecording) return; // Prevent double-clicking
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       audioChunksRef.current = [];
       
       mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
       
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        sendAudioToServer(audioBlob);
+        // Check if we have audio data
+        if (audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          
+          // Check if audio is substantial (more than 0.5 seconds worth)
+          if (audioBlob.size > 5000) { // Increased threshold
+            sendAudioToServer(audioBlob);
+          } else {
+            console.log('Audio too short, skipping...');
+            // Don't show permanent error feedback, just brief message
+            setFeedback('Please hold button longer and speak louder');
+            // Clear the feedback after 2 seconds so user can try again
+            setTimeout(() => setFeedback(''), 2000);
+          }
+        } else {
+          console.log('No audio recorded');
+          setFeedback('No audio detected. Please try again.');
+          // Clear the feedback after 2 seconds so user can try again
+          setTimeout(() => setFeedback(''), 2000);
+        }
+        
+        // Stop all tracks to free up microphone
+        stream.getTracks().forEach(track => track.stop());
       };
       
-      mediaRecorderRef.current.start();
+      mediaRecorderRef.current.start(100); // Record in 100ms chunks
       setIsRecording(true);
+      setFeedback(''); // Clear any previous feedback
     } catch (error) {
       console.error('Error starting recording:', error);
+      setFeedback('Microphone access denied. Please allow microphone access.');
     }
   };
 
@@ -165,10 +200,11 @@ function App() {
           className={`record-btn ${isRecording ? 'recording' : ''}`}
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
+          onMouseLeave={stopRecording} // Stop if mouse leaves button while recording
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
         >
-          {isRecording ? 'Recording...' : 'Hold to Speak'}
+          {isRecording ? '🎤 Recording...' : '🎤 Hold to Speak'}
         </button>
       </div>
 
