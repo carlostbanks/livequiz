@@ -56,35 +56,6 @@ function validateAnswer(userAnswer, expectedAnswer) {
   return false;
 }
 
-// For math questions, validate that response contains numbers or math-related words
-function isValidMathResponse(text, questionType = 'math') {
-  const lowerText = text.toLowerCase().trim();
-  
-  if (questionType === 'math') {
-    // Valid number words and digits - comprehensive
-    const numberPattern = /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\d+)\b/;
-    
-    // Valid math words  
-    const mathWords = ['plus', 'minus', 'equals', 'is', 'add', 'subtract', 'answer'];
-    const hasMathWords = mathWords.some(word => lowerText.includes(word));
-    
-    // Check for numbers in the text
-    const hasNumbers = numberPattern.test(lowerText);
-    
-    console.log('Validation check:', {
-      text: lowerText,
-      hasNumbers,
-      hasMathWords,
-      numberMatches: lowerText.match(numberPattern)
-    });
-    
-    // Must contain either a number or be a simple math expression
-    return hasNumbers || hasMathWords;
-  }
-  
-  return true; // For non-math questions, accept anything
-}
-
 // WebSocket connection handling
 wss.on('connection', (ws) => {
   console.log('Client connected');
@@ -129,12 +100,52 @@ wss.on('connection', (ws) => {
           console.log('Transcribed text:', userText);
           console.log('Expected answer:', data.question.answer);
           
-          // Validate that this is a valid math response
-          if (!isValidMathResponse(userText, 'math')) {
-            console.log('Rejected as invalid math response:', userText);
+          // Smart validation based on question content
+          const isValidResponse = (text, question) => {
+            const lowerText = text.toLowerCase().trim();
+            const questionText = question.question.toLowerCase();
+            
+            // Detect question type based on content
+            const isMathQuestion = /\b(\d+\s*[\+\-\*\/]\s*\d+|what\s+is\s+\d+|addition|subtraction|multiplication|division|how\s+many|how\s+much)\b/.test(questionText);
+            
+            if (isMathQuestion) {
+              // Math question validation
+              const numberPattern = /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\d+)\b/;
+              const mathWords = ['plus', 'minus', 'equals', 'is', 'add', 'subtract', 'answer'];
+              const hasMathWords = mathWords.some(word => lowerText.includes(word));
+              const hasNumbers = numberPattern.test(lowerText);
+              
+              console.log('Math question validation:', {
+                text: lowerText,
+                hasNumbers,
+                hasMathWords,
+                numberMatches: lowerText.match(numberPattern)
+              });
+              
+              return hasNumbers || hasMathWords;
+            } else {
+              // Non-math questions: just check if response is substantial
+              console.log('Non-math question validation:', {
+                text: lowerText,
+                length: lowerText.length,
+                isSubstantial: lowerText.length >= 2
+              });
+              
+              // Accept any response that's at least 2 characters and not just punctuation
+              return lowerText.length >= 2 && /[a-zA-Z0-9]/.test(lowerText);
+            }
+          };
+          
+          if (!isValidResponse(userText, data.question)) {
+            const questionText = data.question.question.toLowerCase();
+            const isMathQuestion = /\b(\d+\s*[\+\-\*\/]\s*\d+|what\s+is\s+\d+|addition|subtraction|multiplication|division)\b/.test(questionText);
+            
+            console.log('Rejected response:', userText);
             ws.send(JSON.stringify({
               type: 'error',
-              message: 'Please answer with a number (e.g., "four" or "4")'
+              message: isMathQuestion 
+                ? 'Please answer with a number (e.g., "four" or "4")'
+                : 'Please give a clear answer to the question'
             }));
             return;
           }
@@ -175,6 +186,43 @@ wss.on('connection', (ws) => {
 // Basic health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'Server running' });
+});
+
+// Generate answer using OpenAI
+app.post('/generate-answer', async (req, res) => {
+  try {
+    const { question } = req.body;
+    
+    if (!question) {
+      return res.status(400).json({ error: 'Question is required' });
+    }
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are helping create quiz answers. Provide very short, concise answers that students could easily speak aloud. For math questions, just give the number. For programming questions, give short keywords or phrases. Keep answers under 10 words and simple to pronounce.'
+        },
+        {
+          role: 'user',
+          content: `What is the correct answer to this question: "${question}"`
+        }
+      ],
+      max_tokens: 50,
+      temperature: 0.1
+    });
+
+    const answer = response.choices[0].message.content.trim();
+    
+    console.log('Generated answer for question:', question);
+    console.log('Answer:', answer);
+    
+    res.json({ answer });
+  } catch (error) {
+    console.error('Error generating answer:', error);
+    res.status(500).json({ error: 'Failed to generate answer' });
+  }
 });
 
 const PORT = process.env.PORT || 3001;
