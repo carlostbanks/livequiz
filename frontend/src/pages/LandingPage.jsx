@@ -1,18 +1,42 @@
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function LandingPage() {
   const navigate = useNavigate();
 
+  useEffect(() => {
+    // Dynamically add Bootstrap CSS and JS to the document head and body.
+    // This is the correct way to load external scripts and stylesheets in a React component
+    // to ensure they work as intended.
+    const bootstrapCss = document.createElement('link');
+    bootstrapCss.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
+    bootstrapCss.rel = "stylesheet";
+    document.head.appendChild(bootstrapCss);
+
+    const bootstrapIcons = document.createElement('link');
+    bootstrapIcons.href = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css";
+    bootstrapIcons.rel = "stylesheet";
+    document.head.appendChild(bootstrapIcons);
+
+    const bootstrapJs = document.createElement('script');
+    bootstrapJs.src = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js";
+    bootstrapJs.async = true;
+    document.body.appendChild(bootstrapJs);
+
+    return () => {
+      // Clean up the added elements when the component unmounts
+      document.head.removeChild(bootstrapCss);
+      document.head.removeChild(bootstrapIcons);
+      document.body.removeChild(bootstrapJs);
+    };
+  }, []); // The empty dependency array ensures this runs only once
+
   return (
     <>
-      {/* Bootstrap CSS */}
-      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-      <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" />
-      
-      <div className="min-vh-100" style={{background: 'linear-gradient(135deg, #009C6B 0%, #007A54 100%)'}}>
-        
+      <div className="min-vh-100" style={{ background: 'linear-gradient(135deg, #009C6B 0%, #007A54 100%)' }}>
+
         {/* Header */}
-        <header className="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+        <header className="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
           <div className="container">
             <a className="navbar-brand d-flex align-items-center" href="#">
               <div className="brand-icon me-2">
@@ -20,42 +44,26 @@ function LandingPage() {
               </div>
               <span className="brand-text">BloomQuiz</span>
             </a>
-            
-            <button 
-              className="navbar-toggler" 
-              type="button" 
-              data-bs-toggle="collapse" 
+
+            <button
+              className="navbar-toggler"
+              type="button"
+              data-bs-toggle="collapse"
               data-bs-target="#navbarNav"
               aria-controls="navbarNav"
               aria-expanded="false"
               aria-label="Toggle navigation"
-              onClick={(e) => {
-                // Fallback if Bootstrap JS isn't loaded
-                const navbar = document.getElementById('navbarNav');
-                const button = e.currentTarget;
-                
-                if (navbar.classList.contains('show')) {
-                  navbar.classList.remove('show');
-                  button.setAttribute('aria-expanded', 'false');
-                } else {
-                  navbar.classList.add('show');
-                  button.setAttribute('aria-expanded', 'true');
-                }
-              }}
             >
               <span className="navbar-toggler-icon"></span>
             </button>
-            
+
             <div className="collapse navbar-collapse" id="navbarNav">
               <div className="navbar-nav ms-auto align-items-center">
                 <a className="nav-link text-muted" href="#features">Features</a>
                 <a className="nav-link text-muted" href="#how-it-works">How It Works</a>
-                <button 
+                <button
                   className="btn btn-outline-primary btn-sm ms-2 mt-2 mt-lg-0"
-                  onClick={() => {
-                    console.log('Admin Login button clicked');
-                    navigate('/admin');
-                  }}
+                  onClick={() => navigate('/admin')}
                 >
                   <i className="bi bi-gear me-1"></i>
                   Admin Login
@@ -69,25 +77,25 @@ function LandingPage() {
         <section className="hero-section">
           <div className="container">
             <div className="row align-items-center min-vh-75">
-              <div className="col-lg-6">
+              <div className="col-lg-6 text-center text-lg-start">
                 <div className="hero-content text-white">
                   <h1 className="hero-title">
                     Voice-Powered
                     <span className="quiz-platform-text d-block">Quiz Platform</span>
                   </h1>
-                  <p className="hero-subtitle">
-                    Transform learning with AI-powered voice quizzes. Students speak their answers, 
+                  <p className="hero-subtitle mx-auto mx-lg-0">
+                    Transform learning with AI-powered voice quizzes. Students speak their answers,
                     get instant feedback, and teachers gain valuable insights.
                   </p>
                   <div className="hero-buttons">
-                    <button 
-                      className="btn btn-primary btn-lg me-3"
+                    <button
+                      className="btn btn-primary btn-lg me-3 mb-3 mb-sm-0"
                       onClick={() => navigate('/students')}
                     >
                       <i className="bi bi-play-circle me-2"></i>
                       Start Taking Quizzes
                     </button>
-                    <button 
+                    <button
                       className="btn btn-outline-light btn-lg"
                       onClick={() => navigate('/admin')}
                     >
@@ -97,7 +105,7 @@ function LandingPage() {
                   </div>
                 </div>
               </div>
-              <div className="col-lg-6">
+              <div className="col-lg-6 d-none d-lg-block">
                 <div className="hero-visual">
                   <div className="hero-icon-circle">
                     <i className="bi bi-mic-fill"></i>
@@ -120,7 +128,7 @@ function LandingPage() {
             </div>
             <div className="row g-4">
               <div className="col-md-4">
-                <div className="feature-box">
+                <div className="feature-box text-center">
                   <div className="feature-icon">
                     <i className="bi bi-mic"></i>
                   </div>
@@ -129,7 +137,7 @@ function LandingPage() {
                 </div>
               </div>
               <div className="col-md-4">
-                <div className="feature-box">
+                <div className="feature-box text-center">
                   <div className="feature-icon">
                     <i className="bi bi-cpu"></i>
                   </div>
@@ -138,7 +146,7 @@ function LandingPage() {
                 </div>
               </div>
               <div className="col-md-4">
-                <div className="feature-box">
+                <div className="feature-box text-center">
                   <div className="feature-icon">
                     <i className="bi bi-graph-up"></i>
                   </div>
@@ -161,7 +169,7 @@ function LandingPage() {
             </div>
             <div className="row g-4 position-relative">
               <div className="col-lg-3 col-md-6">
-                <div className="step-card">
+                <div className="step-card text-center">
                   <div className="step-wrapper">
                     <div className="step-icon">
                       <i className="bi bi-plus-circle"></i>
@@ -172,13 +180,13 @@ function LandingPage() {
                   <p>Add quiz topics and questions through the admin dashboard</p>
                 </div>
               </div>
-              
+
               <div className="step-arrow-1 d-none d-lg-block">
                 <i className="bi bi-arrow-right"></i>
               </div>
-              
+
               <div className="col-lg-3 col-md-6">
-                <div className="step-card">
+                <div className="step-card text-center">
                   <div className="step-wrapper">
                     <div className="step-icon">
                       <i className="bi bi-person"></i>
@@ -189,13 +197,13 @@ function LandingPage() {
                   <p>Students access quizzes through the student portal</p>
                 </div>
               </div>
-              
+
               <div className="step-arrow-2 d-none d-lg-block">
                 <i className="bi bi-arrow-right"></i>
               </div>
-              
+
               <div className="col-lg-3 col-md-6">
-                <div className="step-card">
+                <div className="step-card text-center">
                   <div className="step-wrapper">
                     <div className="step-icon">
                       <i className="bi bi-mic"></i>
@@ -206,13 +214,13 @@ function LandingPage() {
                   <p>Students speak their answers naturally using voice recognition</p>
                 </div>
               </div>
-              
+
               <div className="step-arrow-3 d-none d-lg-block">
                 <i className="bi bi-arrow-right"></i>
               </div>
-              
+
               <div className="col-lg-3 col-md-6">
-                <div className="step-card">
+                <div className="step-card text-center">
                   <div className="step-wrapper">
                     <div className="step-icon">
                       <i className="bi bi-bar-chart"></i>
@@ -237,14 +245,14 @@ function LandingPage() {
                   Join thousands of educators using BloomQuiz to create engaging, accessible quizzes.
                 </p>
                 <div className="cta-buttons">
-                  <button 
-                    className="btn btn-primary btn-lg me-3"
+                  <button
+                    className="btn btn-primary btn-lg me-3 mb-3 mb-sm-0"
                     onClick={() => navigate('/students')}
                   >
                     <i className="bi bi-arrow-right me-2"></i>
                     Get Started Now
                   </button>
-                  <button 
+                  <button
                     className="btn btn-outline-light btn-lg"
                     onClick={() => navigate('/admin')}
                   >
@@ -260,21 +268,21 @@ function LandingPage() {
         {/* Footer */}
         <footer className="footer">
           <div className="container">
-            <div className="row">
+            <div className="row text-center text-lg-start">
               <div className="col-lg-4">
-                <div className="footer-brand">
+                <div className="d-flex flex-column align-items-center align-items-lg-start">
                   <div className="d-flex align-items-center mb-3">
                     <div className="brand-icon me-2">
                       <i className="bi bi-mic-fill"></i>
                     </div>
                     <span className="brand-text">BloomQuiz</span>
                   </div>
-                  <p className="footer-desc">
-                    Empowering education through voice-powered assessments and AI-driven insights.
+                  <p className="footer-desc mx-auto mx-lg-0" style={{ maxWidth: '280px' }}>
+                    Empowering education through voice-powered assessments
                   </p>
                 </div>
               </div>
-              <div className="col-lg-2 col-md-6">
+              <div className="col-lg-2 col-md-6 mt-4 mt-lg-0">
                 <h6 className="footer-title">Platform</h6>
                 <ul className="footer-links">
                   <li><a href="#" onClick={(e) => { e.preventDefault(); navigate('/students'); }}>Student Portal</a></li>
@@ -282,7 +290,7 @@ function LandingPage() {
                   <li><a href="#features">Features</a></li>
                 </ul>
               </div>
-              <div className="col-lg-2 col-md-6">
+              <div className="col-lg-2 col-md-6 mt-4 mt-lg-0">
                 <h6 className="footer-title">Support</h6>
                 <ul className="footer-links">
                   <li><a href="#how-it-works">How It Works</a></li>
@@ -290,12 +298,12 @@ function LandingPage() {
                   <li><a href="#">Help Center</a></li>
                 </ul>
               </div>
-              <div className="col-lg-4">
+              <div className="col-lg-4 mt-4 mt-lg-0">
                 <h6 className="footer-title">Get Started Today</h6>
                 <p className="footer-desc mb-3">
                   Transform your classroom with voice-powered quizzes.
                 </p>
-                <button 
+                <button
                   className="btn btn-primary"
                   onClick={() => navigate('/students')}
                 >
@@ -306,13 +314,13 @@ function LandingPage() {
             </div>
             <hr className="footer-divider" />
             <div className="row align-items-center">
-              <div className="col-md-6">
+              <div className="col-md-6 text-center text-md-start">
                 <p className="footer-copyright">
                   © 2025 BloomQuiz. All rights reserved.
                 </p>
               </div>
-              <div className="col-md-6 text-md-end">
-                <div className="footer-social">
+              <div className="col-md-6 text-center text-md-end">
+                <div className="footer-social d-inline-flex">
                   <a href="#" className="social-link"><i className="bi bi-twitter"></i></a>
                   <a href="#" className="social-link"><i className="bi bi-linkedin"></i></a>
                   <a href="#" className="social-link"><i className="bi bi-github"></i></a>
@@ -324,13 +332,10 @@ function LandingPage() {
 
       </div>
 
-      {/* Bootstrap JS */}
-      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
       {/* Custom Styles */}
       <style jsx>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
+
         * {
           font-family: 'Inter', sans-serif;
         }
@@ -347,16 +352,6 @@ function LandingPage() {
         .navbar {
           backdrop-filter: blur(10px);
           border-bottom: 1px solid rgba(0,0,0,0.05);
-        }
-
-        #navbarNav {
-          transform: scaleY(0);
-          transform-origin: top;
-          transition: transform 0.3s ease-in-out;
-        }
-
-        #navbarNav.show {
-          transform: scaleY(1);
         }
 
         .brand-icon {
@@ -851,21 +846,37 @@ function LandingPage() {
 
         /* Responsive */
         @media (max-width: 768px) {
+          .hero-section {
+            padding: 80px 0;
+          }
+
           .hero-title {
             font-size: 2.5rem;
           }
-          
+
+          .hero-subtitle {
+            font-size: 1rem;
+          }
+
           .section-title {
             font-size: 2rem;
           }
-          
+
           .cta-title {
             font-size: 2rem;
           }
-          
+
           .footer-social {
             justify-content: center;
             margin-top: 1rem;
+          }
+
+          .footer-brand .d-flex {
+            justify-content: center;
+          }
+
+          .footer .brand-text {
+            color: white !important;
           }
         }
       `}</style>
