@@ -1,13 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function LandingPage() {
   const navigate = useNavigate();
+  const [isNavOpen, setIsNavOpen] = useState(false);
 
   useEffect(() => {
-    // Dynamically add Bootstrap CSS and JS to the document head and body.
-    // This is the correct way to load external scripts and stylesheets in a React component
-    // to ensure they work as intended.
+    // Dynamically add Bootstrap CSS and JS
     const bootstrapCss = document.createElement('link');
     bootstrapCss.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
     bootstrapCss.rel = "stylesheet";
@@ -29,7 +28,17 @@ function LandingPage() {
       document.head.removeChild(bootstrapIcons);
       document.body.removeChild(bootstrapJs);
     };
-  }, []); // The empty dependency array ensures this runs only once
+  }, []);
+
+  const handleNavLinkClick = () => {
+    // Close the navbar when a link is clicked
+    setIsNavOpen(false);
+  };
+
+  const handleTogglerClick = () => {
+    // Toggle the navbar state
+    setIsNavOpen(!isNavOpen);
+  };
 
   return (
     <>
@@ -48,22 +57,21 @@ function LandingPage() {
             <button
               className="navbar-toggler"
               type="button"
-              data-bs-toggle="collapse"
-              data-bs-target="#navbarNav"
-              aria-controls="navbarNav"
-              aria-expanded="false"
+              // REMOVED data-bs-toggle and data-bs-target
+              aria-expanded={isNavOpen}
               aria-label="Toggle navigation"
+              onClick={handleTogglerClick}
             >
               <span className="navbar-toggler-icon"></span>
             </button>
 
-            <div className="collapse navbar-collapse" id="navbarNav">
+            <div className={`collapse navbar-collapse ${isNavOpen ? 'show' : ''}`} id="navbarNav">
               <div className="navbar-nav ms-auto align-items-center">
-                <a className="nav-link text-muted" href="#features">Features</a>
-                <a className="nav-link text-muted" href="#how-it-works">How It Works</a>
+                <a className="nav-link text-muted" href="#features" onClick={handleNavLinkClick}>Features</a>
+                <a className="nav-link text-muted" href="#how-it-works" onClick={handleNavLinkClick}>How It Works</a>
                 <button
                   className="btn btn-outline-primary btn-sm ms-2 mt-2 mt-lg-0"
-                  onClick={() => navigate('/admin')}
+                  onClick={() => { navigate('/admin'); handleNavLinkClick(); }}
                 >
                   <i className="bi bi-gear me-1"></i>
                   Admin Login
@@ -90,7 +98,7 @@ function LandingPage() {
                   <div className="hero-buttons">
                     <button
                       className="btn btn-primary btn-lg me-3 mb-3 mb-sm-0"
-                      onClick={() => navigate('/students')}
+                      onClick={() => navigate('/student')}
                     >
                       <i className="bi bi-play-circle me-2"></i>
                       Start Taking Quizzes
@@ -247,7 +255,7 @@ function LandingPage() {
                 <div className="cta-buttons">
                   <button
                     className="btn btn-primary btn-lg me-3 mb-3 mb-sm-0"
-                    onClick={() => navigate('/students')}
+                    onClick={() => navigate('/student')}
                   >
                     <i className="bi bi-arrow-right me-2"></i>
                     Get Started Now
@@ -285,15 +293,15 @@ function LandingPage() {
               <div className="col-lg-2 col-md-6 mt-4 mt-lg-0">
                 <h6 className="footer-title">Platform</h6>
                 <ul className="footer-links">
-                  <li><a href="#" onClick={(e) => { e.preventDefault(); navigate('/students'); }}>Student Portal</a></li>
-                  <li><a href="#" onClick={(e) => { e.preventDefault(); navigate('/admin'); }}>Admin Dashboard</a></li>
-                  <li><a href="#features">Features</a></li>
+                  <li><a href="#" onClick={(e) => { e.preventDefault(); navigate('/student'); handleNavLinkClick(); }}>Student Portal</a></li>
+                  <li><a href="#" onClick={(e) => { e.preventDefault(); navigate('/admin'); handleNavLinkClick(); }}>Admin Dashboard</a></li>
+                  <li><a href="#features" onClick={handleNavLinkClick}>Features</a></li>
                 </ul>
               </div>
               <div className="col-lg-2 col-md-6 mt-4 mt-lg-0">
                 <h6 className="footer-title">Support</h6>
                 <ul className="footer-links">
-                  <li><a href="#how-it-works">How It Works</a></li>
+                  <li><a href="#how-it-works" onClick={handleNavLinkClick}>How It Works</a></li>
                   <li><a href="#">Documentation</a></li>
                   <li><a href="#">Help Center</a></li>
                 </ul>
@@ -305,7 +313,7 @@ function LandingPage() {
                 </p>
                 <button
                   className="btn btn-primary"
-                  onClick={() => navigate('/students')}
+                  onClick={() => navigate('/student')}
                 >
                   <i className="bi bi-play me-2"></i>
                   Start Now
@@ -814,6 +822,15 @@ function LandingPage() {
           border: 2px solid white !important;
         }
 
+        /* Corrected hover for Manage Content button */
+        .hero-section .btn-outline-light:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 0 20px rgba(255, 255, 255, 0.5) !important;
+          background: transparent !important;
+          color: white !important;
+          border-color: white !important;
+        }
+
         /* CTA Section Button Overrides - Same hover behavior for both */
         .cta-section .btn-primary {
           background: #009C6B !important;
@@ -874,10 +891,10 @@ function LandingPage() {
           .footer-brand .d-flex {
             justify-content: center;
           }
-
-          .footer .brand-text {
+        }
+        
+        .footer .brand-text {
             color: white !important;
-          }
         }
       `}</style>
     </>
