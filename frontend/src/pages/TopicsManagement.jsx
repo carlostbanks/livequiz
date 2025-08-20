@@ -6,7 +6,7 @@ import { useNotification, useConfirmation } from '../components/NotificationSyst
 function TopicsManagement() {
   const navigate = useNavigate();
   const [topics, setTopics] = useState([]);
-  const [loading, setLoading] = useState(false); // Remove loading screen entirely
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -32,6 +32,7 @@ function TopicsManagement() {
   }, []);
 
   const fetchTopics = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('topics')
@@ -53,6 +54,8 @@ function TopicsManagement() {
     } catch (error) {
       console.error('Error fetching topics:', error);
       showError('Failed to load topics. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -146,7 +149,7 @@ function TopicsManagement() {
   };
 
   return (
-    <div className="container-fluid bg-light min-vh-100 py-5">
+    <div className="container-fluid bg-stripe min-vh-100 py-5">
       <div className="container">
         
         {/* Header */}
@@ -154,112 +157,125 @@ function TopicsManagement() {
           <div className="col-12">
             <div className="d-flex justify-content-between align-items-center">
               <div>
-                <h1 className="display-6 fw-bold text-primary mb-2">
-                  📚 Topics Management
+                <h1 className="display-6 fw-bold text-dark mb-2">
+                  <i className="bi bi-collection-fill me-2 text-primary"></i>Topics Management
                 </h1>
-                <p className="text-muted">Create and manage quiz topics</p>
+                <p className="text-secondary">Create and manage quiz topics</p>
               </div>
               <div>
                 <button 
-                  className="btn btn-success me-2"
+                  className="btn btn-primary me-2"
                   onClick={() => setShowCreateModal(true)}
                 >
-                  + Create Topic
+                  <i className="bi bi-plus-lg me-2"></i>Create Topic
                 </button>
                 <button 
                   className="btn btn-outline-secondary"
                   onClick={() => navigate('/admin')}
                 >
-                  ← Back to Dashboard
+                  <i className="bi bi-arrow-left me-2"></i>Back to Dashboard
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Topics List */}
-        <div className={`fade-in ${topics.length > 0 ? 'show' : ''}`}>
-          {topics.length === 0 ? (
-            <div className="text-center py-5">
-              <h3 className="text-muted mb-3">No topics created yet</h3>
-              <p className="text-muted mb-4">Create your first topic to get started!</p>
-              <button 
-                className="btn btn-success btn-lg"
-                onClick={() => setShowCreateModal(true)}
-              >
-                + Create First Topic
-              </button>
+        {/* Conditional Content */}
+        {loading ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
             </div>
-          ) : (
-            <div className="row g-4">
-              {topics.map((topic, index) => (
-                <div 
-                  key={topic.id} 
-                  className="col-lg-6 col-xl-4"
-                  style={{
-                    animation: `slideInUp 0.3s ease-out ${index * 0.1}s both`
-                  }}
+            <p className="mt-3 text-muted">Loading topics...</p>
+          </div>
+        ) : (
+          <div className={`fade-in ${topics.length > 0 ? 'show' : ''}`}>
+            {topics.length === 0 ? (
+              <div className="text-center py-5">
+                <h3 className="text-muted mb-3">No topics created yet</h3>
+                <p className="text-muted mb-4">Create your first topic to get started!</p>
+                <button 
+                  className="btn btn-primary btn-lg"
+                  onClick={() => setShowCreateModal(true)}
                 >
-                  <div className="card border-0 shadow-sm h-100 hover-card">
-                    <div className="card-body p-4">
-                      
-                      {/* Topic Header */}
-                      <div className="d-flex justify-content-between align-items-start mb-3">
-                        <h5 className="card-title fw-bold text-dark mb-1">
-                          {topic.name}
-                        </h5>
-                        <span className={`badge bg-${getDifficultyColor(topic.difficulty)}`}>
-                          {topic.difficulty}
-                        </span>
-                      </div>
-
-                      {/* Topic Description */}
-                      <p className="card-text text-muted small mb-3">
-                        {topic.description || 'No description provided'}
-                      </p>
-
-                      {/* Topic Stats */}
-                      <div className="mb-4">
-                        <div className="d-flex justify-content-between align-items-center">
-                          <span className="text-muted small">Questions:</span>
-                          <span className="fw-semibold">{topic.questionCount}</span>
+                  <i className="bi bi-plus-lg me-2"></i>Create First Topic
+                </button>
+              </div>
+            ) : (
+              <div className="row g-4">
+                {topics.map((topic, index) => (
+                  <div 
+                    key={topic.id} 
+                    className="col-lg-6 col-xl-4"
+                    style={{
+                      animation: `slideInUp 0.3s ease-out ${index * 0.1}s both`
+                    }}
+                  >
+                    <div className="card border-0 shadow-sm h-100 hover-card">
+                      <div className="card-body d-flex flex-column p-4">
+                        
+                        {/* Topic Header */}
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <h5 className="card-title fw-bold text-dark mb-0">
+                            {topic.name}
+                          </h5>
+                          <span className={`badge rounded-pill bg-${getDifficultyColor(topic.difficulty)}`}>
+                            {topic.difficulty}
+                          </span>
                         </div>
-                        <div className="d-flex justify-content-between align-items-center">
-                          <span className="text-muted small">Created:</span>
-                          <span className="small">{new Date(topic.created_at).toLocaleDateString()}</span>
+                        
+                        {/* Topic Description */}
+                        <p className="card-text text-secondary small flex-grow-1 mb-3">
+                          {topic.description || 'No description provided'}
+                        </p>
+                        
+                        {/* Topic Stats Section */}
+                        <div className="bg-light rounded-3 p-3 mb-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="text-muted small">
+                              <i className="bi bi-question-circle me-1"></i>Questions:
+                            </span>
+                            <span className="fw-semibold text-dark">{topic.questionCount}</span>
+                          </div>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span className="text-muted small">
+                              <i className="bi bi-calendar me-1"></i>Created:
+                            </span>
+                            <span className="small text-dark">{new Date(topic.created_at).toLocaleDateString()}</span>
+                          </div>
                         </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="d-grid gap-2">
-                        <button 
-                          className="btn btn-primary btn-sm"
-                          onClick={() => navigate(`/admin/topics/${topic.id}/questions`)}
-                        >
-                          Manage Questions ({topic.questionCount})
-                        </button>
-                        <div className="btn-group" role="group">
+                        
+                        {/* Action Buttons */}
+                        <div className="d-grid gap-2 mt-auto">
                           <button 
-                            className="btn btn-outline-secondary btn-sm"
-                            onClick={() => handleEdit(topic)}
+                            className="btn btn-primary btn-sm"
+                            onClick={() => navigate(`/admin/topics/${topic.id}/questions`)}
                           >
-                            Edit
+                            Manage Questions
                           </button>
-                          <button 
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={() => handleDelete(topic)}
-                          >
-                            Delete
-                          </button>
+                          <div className="btn-group" role="group">
+                            <button 
+                              className="btn btn-outline-secondary btn-sm"
+                              onClick={() => handleEdit(topic)}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => handleDelete(topic)}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 
@@ -360,6 +376,20 @@ function TopicsManagement() {
 
       {/* Custom Styles */}
       <style>{`
+        .bg-stripe { background-color: #F9F9FB !important; }
+        .text-primary { color: #009C6B !important; }
+        .text-secondary { color: #6C757D !important; }
+        .text-dark { color: #212529 !important; }
+        .text-info { color: #17a2b8 !important; }
+        .text-success { color: #28a745 !important; }
+        .text-warning { color: #ffc107 !important; }
+        .text-danger { color: #dc3545 !important; }
+        .btn-primary { background-color: #009C6B !important; border-color: #009C6B !important; }
+        .btn-primary:hover { background-color: #00875A !important; border-color: #00875A !important; }
+        .btn-success { background-color: #28a745 !important; border-color: #28a745 !important; }
+        .btn-outline-secondary { color: #6C757D !important; border-color: #E0E0E0 !important; }
+        .btn-outline-secondary:hover { background-color: #E0E0E0 !important; }
+        
         .hover-card {
           transition: all 0.2s ease-in-out;
         }

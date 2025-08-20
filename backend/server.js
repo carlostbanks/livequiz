@@ -35,7 +35,11 @@ function validateAnswer(userAnswer, expectedAnswer) {
   // Direct match
   if (normalized === expected) return true;
 
-  // Comprehensive number conversion
+  if (normalized.includes(expected)) {
+    return true;
+  }
+
+  // Number conversion logic (your existing code)
   const convertNumbersToDigits = (text) => {
     const ones = {
       'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 
@@ -49,7 +53,6 @@ function validateAnswer(userAnswer, expectedAnswer) {
       'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
     };
 
-    // Handle compound numbers like "twenty-four", "fifty-eight"
     text = text.replace(/(\w+)-(\w+)/g, (match, ten, one) => {
       const tenValue = tens[ten.toLowerCase()];
       const oneValue = ones[one.toLowerCase()];
@@ -59,7 +62,6 @@ function validateAnswer(userAnswer, expectedAnswer) {
       return match;
     });
 
-    // Handle single number words
     Object.entries({...ones, ...tens}).forEach(([word, digit]) => {
       text = text.replace(new RegExp(`\\b${word}\\b`, 'g'), digit.toString());
     });
@@ -77,7 +79,6 @@ function validateAnswer(userAnswer, expectedAnswer) {
       '80': 'eighty', '90': 'ninety'
     };
 
-    // Handle compound numbers (21-99)
     text = text.replace(/\b([2-9])([1-9])\b/g, (match, tens, ones) => {
       const tensWord = digitToWord[tens + '0'];
       const onesWord = digitToWord[ones];
@@ -87,7 +88,6 @@ function validateAnswer(userAnswer, expectedAnswer) {
       return match;
     });
 
-    // Handle single digits and special cases
     Object.entries(digitToWord).forEach(([digit, word]) => {
       text = text.replace(new RegExp(`\\b${digit}\\b`, 'g'), word);
     });

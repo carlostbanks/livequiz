@@ -9,6 +9,7 @@ function QuestionsManagement() {
   
   const [topic, setTopic] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -25,6 +26,7 @@ function QuestionsManagement() {
   }, [topicId]);
 
   const fetchTopicAndQuestions = async () => {
+    setLoading(true);
     try {
       // Fetch topic details
       const { data: topicData, error: topicError } = await supabase
@@ -49,6 +51,8 @@ function QuestionsManagement() {
     } catch (error) {
       console.error('Error fetching data:', error);
       showError('Failed to load questions. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -197,62 +201,61 @@ function QuestionsManagement() {
     const newIndex = direction === 'up' ? questionIndex - 1 : questionIndex + 1;
     if (newIndex < 0 || newIndex >= questions.length) return;
 
+    // Create a new array with the questions reordered
+    const newQuestions = [...questions];
+    const [movedQuestion] = newQuestions.splice(questionIndex, 1);
+    newQuestions.splice(newIndex, 0, movedQuestion);
+
+    // Update the order_index property of the moved questions
+    newQuestions[questionIndex].order_index = questionIndex + 1;
+    newQuestions[newIndex].order_index = newIndex + 1;
+
+    // Optimistically update the UI first
+    setQuestions(newQuestions);
+
     try {
-      // Create a new array with the moved question
-      const newQuestions = [...questions];
-      const [movedQuestion] = newQuestions.splice(questionIndex, 1);
-      newQuestions.splice(newIndex, 0, movedQuestion);
-
-      // Update all order_index values to be sequential
-      const updates = newQuestions.map((question, index) => ({
-        id: question.id,
-        order_index: index + 1
-      }));
-
-      // Update all questions in database
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('questions')
-          .update({ order_index: update.order_index })
-          .eq('id', update.id);
-
-        if (error) throw error;
-      }
-
-      fetchTopicAndQuestions(); // Refresh to show new order
+        // Then, update the database for the two affected questions
+        await supabase
+        .from('questions')
+        .upsert([
+            { id: movedQuestion.id, order_index: movedQuestion.order_index },
+            { id: newQuestions[questionIndex].id, order_index: newQuestions[questionIndex].order_index }
+        ]);
     } catch (error) {
-      console.error('Error reordering questions:', error);
-      showError('Failed to reorder questions. Please try again.');
+        console.error('Error reordering questions:', error);
+        showError('Failed to reorder questions. Please try again.');
+        // If the database update fails, you might want to revert the UI state
+        fetchTopicAndQuestions(); 
     }
-  };
+    };
 
+  // Conditional rendering based on loading state
+  if (loading) {
+    return (
+      <div className="container-fluid bg-stripe min-vh-100 py-5">
+        <div className="container">
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="mt-3 text-muted">Loading topics...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if topic exists after loading is complete
   if (!topic) {
     return (
-      <div className="container-fluid bg-light min-vh-100 py-5">
+      <div className="container-fluid bg-stripe min-vh-100 py-5">
         <div className="container">
-          <div className="row mb-4">
-            <div className="col-12">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h1 className="display-6 fw-bold text-primary mb-1">
-                    ❓ Questions Management
-                  </h1>
-                  <p className="text-muted">Topic not found</p>
-                </div>
-                <button 
-                  className="btn btn-outline-secondary"
-                  onClick={() => navigate('/admin/topics')}
-                >
-                  ← Back to Topics
-                </button>
-              </div>
-            </div>
-          </div>
           <div className="text-center">
-            <div className="alert alert-danger">
-              <h4>Topic not found</h4>
+            <div className="alert alert-danger bg-white shadow-sm border-0 rounded-3 p-4">
+              <h4 className="fw-bold text-danger">Topic Not Found</h4>
+              <p className="text-secondary">The specified topic does not exist. Please check the URL.</p>
               <button className="btn btn-primary" onClick={() => navigate('/admin/topics')}>
-                Back to Topics
+                Go to Topics
               </button>
             </div>
           </div>
@@ -262,22 +265,22 @@ function QuestionsManagement() {
   }
 
   return (
-    <div className="container-fluid bg-light min-vh-100 py-5">
+    <div className="container-fluid bg-stripe min-vh-100 py-5">
       <div className="container">
         
-        {/* Header */}
+        {/* Header - No changes */}
         <div className="row mb-4">
           <div className="col-12">
             <div className="d-flex justify-content-between align-items-center">
               <div>
-                <h1 className="display-6 fw-bold text-primary mb-1">
-                  ❓ Questions: {topic.name}
+                <h1 className="display-6 fw-bold text-dark mb-1">
+                  <i className="bi bi-question-circle-fill me-2 text-primary"></i>Questions: {topic.name}
                 </h1>
-                <p className="text-muted">Manage questions for this topic</p>
+                <p className="text-secondary">Manage questions for this topic</p>
               </div>
               <div>
                 <button 
-                  className="btn btn-success me-2"
+                  className="btn btn-primary me-2"
                   onClick={() => {
                     setFormData({
                       question_text: '',
@@ -286,26 +289,26 @@ function QuestionsManagement() {
                     setShowCreateModal(true);
                   }}
                 >
-                  + Add Question
+                  <i className="bi bi-plus-lg me-2"></i>Add Question
                 </button>
                 <button 
                   className="btn btn-outline-secondary"
                   onClick={() => navigate('/admin/topics')}
                 >
-                  ← Back to Topics
+                  <i className="bi bi-arrow-left me-2"></i>Back to Topics
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Questions List */}
+        {/* Conditional Content */}
         {questions.length === 0 ? (
           <div className="text-center py-5">
             <h3 className="text-muted mb-3">No questions created yet</h3>
             <p className="text-muted mb-4">Add your first question to get started!</p>
             <button 
-              className="btn btn-success btn-lg"
+              className="btn btn-primary btn-lg"
               onClick={() => {
                 setFormData({
                   question_text: '',
@@ -314,75 +317,71 @@ function QuestionsManagement() {
                 setShowCreateModal(true);
               }}
             >
-              + Add First Question
+              <i className="bi bi-plus-lg me-2"></i>Add First Question
             </button>
           </div>
         ) : (
-          <div className="row">
-            <div className="col-12">
-              <div className="card border-0 shadow-sm">
-                <div className="card-body p-0">
-                  {questions.map((question, index) => (
-                    <div key={question.id} className="border-bottom p-4" style={{
-                      animation: `slideInUp 0.3s ease-out ${index * 0.1}s both`
-                    }}>
-                      <div className="row align-items-center">
-                        
-                        {/* Question Number & Reorder */}
-                        <div className="col-md-1 text-center">
-                          <div className="badge bg-primary mb-2">#{question.order_index}</div>
-                          <div className="btn-group-vertical btn-group-sm">
-                            <button 
-                              className="btn btn-outline-secondary btn-sm"
-                              onClick={() => moveQuestion(question.id, 'up')}
-                              disabled={index === 0}
-                            >
-                              ↑
-                            </button>
-                            <button 
-                              className="btn btn-outline-secondary btn-sm"
-                              onClick={() => moveQuestion(question.id, 'down')}
-                              disabled={index === questions.length - 1}
-                            >
-                              ↓
-                            </button>
-                          </div>
+          <div className="row g-4">
+            {questions.map((question, index) => (
+              <div key={question.id} className="col-12" style={{
+                animation: `slideInUp 0.3s ease-out ${index * 0.1}s both`
+              }}>
+                <div className="card border-0 shadow-sm question-card">
+                  <div className="card-body p-4">
+                    <div className="d-flex align-items-center">
+                      
+                      {/* Number and Reorder Buttons */}
+                      <div className="d-flex align-items-center me-4">
+                        <h4 className="fw-bold text-primary mb-0 me-3">#{question.order_index}</h4>
+                        <div className="btn-group-vertical btn-group-lg">
+                          <button 
+                            className="btn btn-outline-secondary"
+                            onClick={() => moveQuestion(question.id, 'up')}
+                            disabled={index === 0}
+                          >
+                            <i className="bi bi-arrow-up-short"></i>
+                          </button>
+                          <button 
+                            className="btn btn-outline-secondary"
+                            onClick={() => moveQuestion(question.id, 'down')}
+                            disabled={index === questions.length - 1}
+                          >
+                            <i className="bi bi-arrow-down-short"></i>
+                          </button>
                         </div>
-
-                        {/* Question Content */}
-                        <div className="col-md-8">
-                          <h6 className="fw-bold text-dark mb-2">Question:</h6>
-                          <p className="mb-3">{question.question_text}</p>
-                          <h6 className="fw-bold text-success mb-2">Expected Answer:</h6>
-                          <p className="text-success mb-0">
-                            <code>{question.answer_text}</code>
-                          </p>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="col-md-3 text-end">
-                          <div className="btn-group">
-                            <button 
-                              className="btn btn-outline-primary btn-sm"
-                              onClick={() => handleEdit(question)}
-                            >
-                              Edit
-                            </button>
-                            <button 
-                              className="btn btn-outline-danger btn-sm"
-                              onClick={() => handleDelete(question)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-
                       </div>
+
+                      {/* Question Content */}
+                      <div className="flex-grow-1">
+                        <h5 className="fw-bold text-dark mb-2">Question:</h5>
+                        <p className="lead fw-normal text-secondary mb-3">{question.question_text}</p>
+                        <h5 className="fw-bold text-primary mb-1">Expected Answer:</h5>
+                        <p className="fs-5 text-dark">
+                          <code>{question.answer_text}</code>
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="ms-auto d-flex">
+                        <button 
+                          className="btn btn-outline-secondary me-2"
+                          onClick={() => handleEdit(question)}
+                        >
+                          <i className="bi bi-pencil me-1"></i>Edit
+                        </button>
+                        <button 
+                          className="btn btn-outline-danger"
+                          onClick={() => handleDelete(question)}
+                        >
+                          <i className="bi bi-trash me-1"></i>Delete
+                        </button>
+                      </div>
+
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         )}
 
@@ -392,9 +391,9 @@ function QuestionsManagement() {
       {showCreateModal && (
         <div className="modal fade show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
-            <div className="modal-content border-0 shadow-lg">
-              <div className="modal-header border-0">
-                <h5 className="modal-title fw-bold">
+            <div className="modal-content border-0 shadow-lg rounded-4">
+              <div className="modal-header border-0 pb-0">
+                <h5 className="modal-title fw-bold text-dark">
                   {editingQuestion ? 'Edit Question' : 'Add New Question'}
                 </h5>
                 <button 
@@ -404,11 +403,11 @@ function QuestionsManagement() {
                 ></button>
               </div>
               <form onSubmit={handleSubmit}>
-                <div className="modal-body">
+                <div className="modal-body p-4">
                   
                   {/* Question Text */}
                   <div className="mb-3">
-                    <label htmlFor="questionText" className="form-label fw-semibold">Question *</label>
+                    <label htmlFor="questionText" className="form-label fw-semibold fs-5">Question *</label>
                     <textarea
                       className="form-control"
                       id="questionText"
@@ -422,7 +421,7 @@ function QuestionsManagement() {
 
                   {/* Answer Text */}
                   <div className="mb-3">
-                    <label htmlFor="answerText" className="form-label fw-semibold">Expected Answer</label>
+                    <label htmlFor="answerText" className="form-label fw-semibold fs-5">Expected Answer</label>
                     <input
                       type="text"
                       className="form-control"
@@ -432,18 +431,18 @@ function QuestionsManagement() {
                       placeholder="Leave blank to auto-generate with AI"
                     />
                     {formData.answer_text.trim() ? (
-                      <div className="form-text">
+                      <div className="form-text fs-6">
                         Custom answer provided. Students will need to match this exactly.
                       </div>
                     ) : (
-                      <div className="form-text">
+                      <div className="form-text fs-6">
                         💡 <strong>Leave blank</strong> and AI will generate the correct answer automatically.
                       </div>
                     )}
                   </div>
 
                 </div>
-                <div className="modal-footer border-0">
+                <div className="modal-footer border-0 pt-0">
                   <button 
                     type="button" 
                     className="btn btn-outline-secondary" 
@@ -460,7 +459,7 @@ function QuestionsManagement() {
                     {saving ? (
                       <>
                         <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                        {editingQuestion ? 'Updating...' : 'Creating...'}
+                        {editingQuestion ? 'Updating...' : 'Add Question'}
                       </>
                     ) : (
                       editingQuestion ? 'Update Question' : 'Add Question'
@@ -479,6 +478,46 @@ function QuestionsManagement() {
 
       {/* Custom Styles */}
       <style>{`
+        .bg-stripe { background-color: #F9F9FB !important; }
+        .text-primary { color: #009C6B !important; }
+        .text-secondary { color: #6C757D !important; }
+        .text-dark { color: #212529 !important; }
+        .text-info { color: #17a2b8 !important; }
+        .text-success { color: #28a745 !important; }
+        .text-warning { color: #ffc107 !important; }
+        .text-danger { color: #dc3545 !important; }
+        .btn-primary { background-color: #009C6B !important; border-color: #009C6B !important; }
+        .btn-primary:hover { background-color: #00875A !important; border-color: #00875A !important; }
+        .btn-success { background-color: #28a745 !important; border-color: #28a745 !important; }
+        .btn-outline-secondary { color: #6C757D !important; border-color: #E0E0E0 !important; }
+        .btn-outline-secondary:hover { background-color: #E0E0E0 !important; }
+        .btn-outline-primary { color: #009C6B !important; border-color: #009C6B !important; }
+
+        .question-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        
+        .question-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+        }
+        
+        .modal-content {
+          border-radius: 1rem;
+        }
+        
+        .form-control, .form-select {
+          font-size: 1rem;
+        }
+
+        .fs-5 { font-size: 1.25rem !important; }
+        .lead { font-size: 1.25rem !important; }
+        .btn { font-size: 1rem !important; }
+        .btn-lg { font-size: 1.25rem !important; }
+        .btn-sm { font-size: 0.875rem !important; }
+        .h4 { font-size: 1.5rem !important; }
+        .h5 { font-size: 1.25rem !important; }
+        
         @keyframes slideInUp {
           from {
             opacity: 0;
