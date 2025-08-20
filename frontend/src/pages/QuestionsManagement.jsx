@@ -201,30 +201,34 @@ function QuestionsManagement() {
     const newIndex = direction === 'up' ? questionIndex - 1 : questionIndex + 1;
     if (newIndex < 0 || newIndex >= questions.length) return;
 
-    // Create a new array with the questions reordered
+    // Create a new array to hold the reordered questions
     const newQuestions = [...questions];
     const [movedQuestion] = newQuestions.splice(questionIndex, 1);
     newQuestions.splice(newIndex, 0, movedQuestion);
 
-    // Update the order_index property of the moved questions
-    newQuestions[questionIndex].order_index = questionIndex + 1;
-    newQuestions[newIndex].order_index = newIndex + 1;
-
-    // Optimistically update the UI first
-    setQuestions(newQuestions);
+    // Update the order_index for ALL questions in the new array
+    const updates = newQuestions.map((q, index) => ({
+        ...q, // Spread the entire question object to keep all its data
+        order_index: index + 1
+    }));
+    
+    // Optimistically update the UI with the new ordered questions
+    setQuestions(updates);
 
     try {
-        // Then, update the database for the two affected questions
-        await supabase
+        // Upsert all questions in the database with their new order
+        const { error } = await supabase
         .from('questions')
-        .upsert([
-            { id: movedQuestion.id, order_index: movedQuestion.order_index },
-            { id: newQuestions[questionIndex].id, order_index: newQuestions[questionIndex].order_index }
-        ]);
+        .upsert(updates);
+        
+        if (error) throw error;
+        
+        showSuccess('Question reordered successfully!');
+        
     } catch (error) {
         console.error('Error reordering questions:', error);
         showError('Failed to reorder questions. Please try again.');
-        // If the database update fails, you might want to revert the UI state
+        // If the database update fails, revert the UI state
         fetchTopicAndQuestions(); 
     }
     };
