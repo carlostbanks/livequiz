@@ -185,6 +185,7 @@ function Quiz() {
         stream.getTracks().forEach(track => track.stop());
         clearInterval(timerRef.current);
         setRecordTime(0);
+        setIsRecording(false);
       };
       
       mediaRecorderRef.current.start(100);
@@ -242,6 +243,10 @@ function Quiz() {
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
 
+  const percentageScore = questions.length > 0 
+    ? ((score / questions.length) * 100).toFixed(0) 
+    : 0;
+
   if (loading) {
     return (
       <div className="container-fluid min-vh-100 d-flex flex-column align-items-center justify-content-center bg-stripe py-5">
@@ -291,7 +296,7 @@ function Quiz() {
                 <div className="card shadow-lg border-0 mb-4 rounded-3">
                   <div className="card-body p-5">
                     <h2 className="display-5 fw-bold text-dark mb-3">
-                      Your Score: <span className="text-primary">{score}</span>/{questions.length}
+                      Your Score: <span className="text-primary">{score}</span>/{questions.length} ({percentageScore}%)
                     </h2>
                     <p className="lead text-secondary">
                       {score === questions.length ? "Perfect score! 🌟" : 
@@ -433,7 +438,7 @@ function Quiz() {
                     </button>
                   </div>
                   {isRecording && (
-                      <div className="text-center fw-semibold text-muted" style={{ minHeight: '1.5rem' }}>
+                      <div className="text-center fw-normal fs-3 text-muted" style={{ minHeight: '1.5rem' }}>
                           {recordTime}s
                       </div>
                   )}

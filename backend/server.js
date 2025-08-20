@@ -24,8 +24,8 @@ app.use(express.json());
 function validateAnswer(userAnswer, expectedAnswer) {
   const normalizeAnswer = (text) => {
     return text.toLowerCase()
-      .replace(/[^\w\s]/g, '') // Remove punctuation
-      .replace(/\s+/g, ' ')    // Normalize spaces
+      .replace(/[^\w\s-]/g, '') // Keep hyphens for compound numbers
+      .replace(/\s+/g, ' ')
       .trim();
   };
 
@@ -35,25 +35,81 @@ function validateAnswer(userAnswer, expectedAnswer) {
   // Direct match
   if (normalized === expected) return true;
 
-  // Number word to digit conversion
-  const numberWords = {
-    'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
-    'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
-    'ten': '10', 'eleven': '11', 'twelve': '12'
+  // Comprehensive number conversion
+  const convertNumbersToDigits = (text) => {
+    const ones = {
+      'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10, 
+      'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 
+      'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19
+    };
+    
+    const tens = {
+      'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50, 
+      'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
+    };
+
+    // Handle compound numbers like "twenty-four", "fifty-eight"
+    text = text.replace(/(\w+)-(\w+)/g, (match, ten, one) => {
+      const tenValue = tens[ten.toLowerCase()];
+      const oneValue = ones[one.toLowerCase()];
+      if (tenValue !== undefined && oneValue !== undefined) {
+        return (tenValue + oneValue).toString();
+      }
+      return match;
+    });
+
+    // Handle single number words
+    Object.entries({...ones, ...tens}).forEach(([word, digit]) => {
+      text = text.replace(new RegExp(`\\b${word}\\b`, 'g'), digit.toString());
+    });
+
+    return text;
   };
 
-  let convertedAnswer = normalized;
-  Object.entries(numberWords).forEach(([word, digit]) => {
-    convertedAnswer = convertedAnswer.replace(new RegExp(`\\b${word}\\b`, 'g'), digit);
-  });
+  const convertDigitsToWords = (text) => {
+    const digitToWord = {
+      '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five',
+      '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten',
+      '11': 'eleven', '12': 'twelve', '13': 'thirteen', '14': 'fourteen', '15': 'fifteen',
+      '16': 'sixteen', '17': 'seventeen', '18': 'eighteen', '19': 'nineteen', '20': 'twenty',
+      '30': 'thirty', '40': 'forty', '50': 'fifty', '60': 'sixty', '70': 'seventy',
+      '80': 'eighty', '90': 'ninety'
+    };
 
-  // Check if converted answer matches
-  if (convertedAnswer === expected || convertedAnswer.includes(expected)) return true;
+    // Handle compound numbers (21-99)
+    text = text.replace(/\b([2-9])([1-9])\b/g, (match, tens, ones) => {
+      const tensWord = digitToWord[tens + '0'];
+      const onesWord = digitToWord[ones];
+      if (tensWord && onesWord) {
+        return `${tensWord}-${onesWord}`;
+      }
+      return match;
+    });
 
-  // Check if the expected answer is contained in the user's response
-  if (normalized.includes(expected)) return true;
+    // Handle single digits and special cases
+    Object.entries(digitToWord).forEach(([digit, word]) => {
+      text = text.replace(new RegExp(`\\b${digit}\\b`, 'g'), word);
+    });
 
-  return false;
+    return text;
+  };
+
+  // Convert both answers in both directions
+  const userAsDigits = convertNumbersToDigits(normalized);
+  const expectedAsDigits = convertNumbersToDigits(expected);
+  const userAsWords = convertDigitsToWords(normalized);
+  const expectedAsWords = convertDigitsToWords(expected);
+
+  // Check all possible matches
+  return userAsDigits === expectedAsDigits ||
+         userAsDigits === expected ||
+         normalized === expectedAsDigits ||
+         userAsWords === expectedAsWords ||
+         userAsWords === expected ||
+         normalized === expectedAsWords ||
+         userAsDigits === expectedAsWords ||
+         userAsWords === expectedAsDigits;
 }
 
 // WebSocket connection handling
