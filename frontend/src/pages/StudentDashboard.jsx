@@ -13,7 +13,7 @@ const TOPIC_ICONS = {
 function StudentDashboard() {
   const navigate = useNavigate();
   const [topics, setTopics] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Fetch topics from database
@@ -23,8 +23,6 @@ function StudentDashboard() {
 
   const fetchTopics = async () => {
     try {
-      setLoading(true);
-      
       // Get topics with question count
       const { data: topicsData, error: topicsError } = await supabase
         .from('topics')
@@ -47,8 +45,6 @@ function StudentDashboard() {
     } catch (error) {
       console.error('Error fetching topics:', error);
       setError('Failed to load topics');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -61,29 +57,38 @@ function StudentDashboard() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="container-fluid bg-light min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="text-center">
-          <div className="spinner-border text-primary mb-3" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="text-muted">Loading topics...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
-      <div className="container-fluid bg-light min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="text-center">
-          <div className="alert alert-danger">
-            <h4>Oops! Something went wrong</h4>
-            <p>{error}</p>
-            <button className="btn btn-primary" onClick={fetchTopics}>
-              Try Again
-            </button>
+      <div className="container-fluid bg-light min-vh-100 py-5">
+        <div className="container">
+          <div className="row mb-5">
+            <div className="col-12">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                  <h1 className="display-5 fw-bold text-primary mb-2">
+                    🌸 Choose Your Topic
+                  </h1>
+                  <p className="lead text-muted">
+                    Select a topic below to start your voice-based quiz
+                  </p>
+                </div>
+                <button 
+                  className="btn btn-outline-secondary"
+                  onClick={() => navigate('/')}
+                >
+                  ← Back to Home
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="alert alert-danger">
+              <h4>Oops! Something went wrong</h4>
+              <p>{error}</p>
+              <button className="btn btn-primary" onClick={fetchTopics}>
+                Try Again
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -124,9 +129,14 @@ function StudentDashboard() {
           </div>
         ) : (
           <div className="row g-4">
-            {topics.map((topic) => (
+            {topics.map((topic, index) => (
               <div key={topic.id} className="col-lg-6 col-xl-4">
-                <div className="card h-100 shadow-sm border-0 hover-card">
+                <div 
+                  className="card h-100 shadow-sm border-0 hover-card"
+                  style={{
+                    animation: `slideInUp 0.3s ease-out ${index * 0.1}s both`
+                  }}
+                >
                   <div className="card-body p-4">
                     
                     {/* Topic Icon & Title */}
@@ -201,6 +211,16 @@ function StudentDashboard() {
         .hover-card:hover {
           transform: translateY(-2px);
           box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+        }
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
     </div>

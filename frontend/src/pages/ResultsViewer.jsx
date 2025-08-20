@@ -6,7 +6,7 @@ function ResultsViewer() {
   const navigate = useNavigate();
   const [results, setResults] = useState([]);
   const [topics, setTopics] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState('all');
   const [selectedResult, setSelectedResult] = useState(null);
 
@@ -14,14 +14,8 @@ function ResultsViewer() {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    filterResults();
-  }, [selectedTopic]);
-
   const fetchData = async () => {
     try {
-      setLoading(true);
-
       // Fetch all quiz results
       const { data: resultsData, error: resultsError } = await supabase
         .from('quiz_results')
@@ -46,13 +40,7 @@ function ResultsViewer() {
     } catch (error) {
       console.error('Error fetching results:', error);
       alert('Error loading quiz results');
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const filterResults = () => {
-    // This will be handled by the display logic
   };
 
   const getScoreColor = (score, total) => {
@@ -74,19 +62,6 @@ function ResultsViewer() {
   const closeDetails = () => {
     setSelectedResult(null);
   };
-
-  if (loading) {
-    return (
-      <div className="container-fluid bg-light min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="text-center">
-          <div className="spinner-border text-primary mb-3" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="text-muted">Loading quiz results...</p>
-        </div>
-      </div>
-    );
-  }
 
   const filteredResults = getFilteredResults();
 
@@ -114,7 +89,7 @@ function ResultsViewer() {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters and Summary */}
         <div className="row mb-4">
           <div className="col-md-6">
             <div className="card border-0 shadow-sm">
@@ -168,14 +143,17 @@ function ResultsViewer() {
           </div>
         </div>
 
-        {/* Results Table */}
+        {/* Results Table - ONLY this needs animation since it's loading data */}
         {filteredResults.length === 0 ? (
           <div className="text-center py-5">
             <h3 className="text-muted mb-3">No quiz results found</h3>
             <p className="text-muted">Students haven't taken any quizzes yet, or try changing the filter.</p>
           </div>
         ) : (
-          <div className="card border-0 shadow-sm">
+          <div 
+            className="card border-0 shadow-sm"
+            style={{animation: `slideInUp 0.3s ease-out 0s both`}}
+          >
             <div className="card-body p-0">
               <div className="table-responsive">
                 <table className="table table-hover mb-0">
@@ -190,8 +168,13 @@ function ResultsViewer() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredResults.map((result) => (
-                      <tr key={result.id}>
+                    {filteredResults.map((result, index) => (
+                      <tr 
+                        key={result.id}
+                        style={{
+                          animation: `slideInUp 0.3s ease-out ${0.1 + (index * 0.05)}s both`
+                        }}
+                      >
                         <td>
                           <small>
                             {new Date(result.created_at).toLocaleDateString()}<br/>
@@ -304,6 +287,20 @@ function ResultsViewer() {
           </div>
         </div>
       )}
+
+      {/* Animations */}
+      <style>{`
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

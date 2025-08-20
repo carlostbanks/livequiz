@@ -10,7 +10,8 @@ function AdminDashboard() {
     totalQuizResults: 0,
     recentResults: []
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [selectedResult, setSelectedResult] = useState(null);
 
   useEffect(() => {
     fetchStats();
@@ -18,8 +19,6 @@ function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      setLoading(true);
-
       // Get topics count
       const { count: topicsCount } = await supabase
         .from('topics')
@@ -53,23 +52,23 @@ function AdminDashboard() {
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="container-fluid bg-light min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="text-center">
-          <div className="spinner-border text-primary mb-3" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="text-muted">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const viewDetails = (result) => {
+    setSelectedResult(result);
+  };
+
+  const closeDetails = () => {
+    setSelectedResult(null);
+  };
+
+  const getScoreColor = (score, total) => {
+    const percentage = (score / total) * 100;
+    if (percentage >= 80) return 'success';
+    if (percentage >= 60) return 'warning';
+    return 'danger';
+  };
 
   return (
     <div className="container-fluid bg-light min-vh-100 py-5">
@@ -169,12 +168,6 @@ function AdminDashboard() {
                   >
                     Manage Topics & Questions
                   </button>
-                  <button 
-                    className="btn btn-outline-primary"
-                    onClick={() => navigate('/admin/topics?create=true')}
-                  >
-                    + Create New Topic
-                  </button>
                 </div>
               </div>
             </div>
@@ -194,23 +187,20 @@ function AdminDashboard() {
                   >
                     View All Results
                   </button>
-                  <button 
-                    className="btn btn-outline-success"
-                    onClick={() => navigate('/admin/analytics')}
-                  >
-                    Analytics Dashboard
-                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Recent Quiz Results */}
+        {/* Recent Quiz Results - Only animate this since it loads data */}
         {stats.recentResults.length > 0 && (
           <div className="row">
             <div className="col-12">
-              <div className="card border-0 shadow-sm">
+              <div 
+                className="card border-0 shadow-sm"
+                style={{animation: `slideInUp 0.3s ease-out 0s both`}}
+              >
                 <div className="card-header bg-white border-bottom">
                   <h5 className="card-title mb-0">🕒 Recent Quiz Results</h5>
                 </div>
@@ -227,8 +217,13 @@ function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {stats.recentResults.map((result) => (
-                          <tr key={result.id}>
+                        {stats.recentResults.map((result, index) => (
+                          <tr 
+                            key={result.id}
+                            style={{
+                              animation: `slideInUp 0.3s ease-out ${0.1 + (index * 0.05)}s both`
+                            }}
+                          >
                             <td>
                               <strong>{result.student_name || 'Anonymous'}</strong>
                             </td>
@@ -254,7 +249,7 @@ function AdminDashboard() {
                             <td>
                               <button 
                                 className="btn btn-sm btn-outline-primary"
-                                onClick={() => navigate(`/admin/results/${result.id}`)}
+                                onClick={() => viewDetails(result)}
                               >
                                 View Details
                               </button>
@@ -271,6 +266,90 @@ function AdminDashboard() {
         )}
 
       </div>
+
+      {/* Details Modal - Same as View Results page */}
+      {selectedResult && (
+        <div className="modal fade show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  Quiz Details - {selectedResult.topics?.name || 'Unknown Topic'}
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={closeDetails}
+                ></button>
+              </div>
+              <div className="modal-body">
+                
+                {/* Result Summary */}
+                <div className="row mb-4">
+                  <div className="col-md-6">
+                    <h6>Student Information</h6>
+                    <p><strong>Name:</strong> {selectedResult.student_name || 'Anonymous'}</p>
+                    <p><strong>Date:</strong> {new Date(selectedResult.created_at).toLocaleString()}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <h6>Quiz Performance</h6>
+                    <p><strong>Score:</strong> {selectedResult.score}/{selectedResult.total_questions}</p>
+                    <p><strong>Percentage:</strong> {Math.round((selectedResult.score / selectedResult.total_questions) * 100)}%</p>
+                  </div>
+                </div>
+
+                {/* Individual Answers */}
+                <h6>Individual Answers</h6>
+                {selectedResult.answers_json && selectedResult.answers_json.map((answer, index) => (
+                  <div key={index} className={`card mb-2 ${answer.correct ? 'border-success' : 'border-danger'}`}>
+                    <div className="card-body py-2">
+                      <div className="row align-items-center">
+                        <div className="col-md-1">
+                          <span className={`badge ${answer.correct ? 'bg-success' : 'bg-danger'}`}>
+                            {answer.correct ? '✓' : '✗'}
+                          </span>
+                        </div>
+                        <div className="col-md-11">
+                          <div className="mb-1">
+                            <strong>Q:</strong> {answer.question}
+                          </div>
+                          <div>
+                            <strong>Student said:</strong> "{answer.userAnswer}"
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={closeDetails}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Animations - Only for data that loads */}
+      <style>{`
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -17,7 +17,7 @@ function Quiz() {
   // Database state
   const [questions, setQuestions] = useState([]);
   const [topicName, setTopicName] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
   const mediaRecorderRef = useRef(null);
@@ -31,8 +31,6 @@ function Quiz() {
 
   const fetchTopicAndQuestions = async () => {
     try {
-      setLoading(true);
-      
       // Fetch topic details
       const { data: topicData, error: topicError } = await supabase
         .from('topics')
@@ -61,8 +59,6 @@ function Quiz() {
     } catch (error) {
       console.error('Error fetching topic/questions:', error);
       setError('Failed to load quiz questions');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -239,34 +235,37 @@ function Quiz() {
     setFeedback('');
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="container-fluid bg-light min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="text-center">
-          <div className="spinner-border text-primary mb-3" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="text-muted">Loading quiz...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Error state
   if (error) {
     return (
-      <div className="container-fluid bg-light min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="text-center">
-          <div className="alert alert-danger">
-            <h4>Oops! Something went wrong</h4>
-            <p>{error}</p>
-            <button className="btn btn-primary me-2" onClick={fetchTopicAndQuestions}>
-              Try Again
-            </button>
-            <button className="btn btn-outline-secondary" onClick={() => navigate('/student')}>
-              Back to Topics
-            </button>
+      <div className="container-fluid bg-light min-vh-100 py-5">
+        <div className="container">
+          <div className="row justify-content-center">
+            <div className="col-lg-8">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                  <h2 className="text-primary fw-bold mb-1">Quiz Error</h2>
+                </div>
+                <button 
+                  className="btn btn-outline-secondary"
+                  onClick={() => navigate('/student')}
+                >
+                  ← Back to Topics
+                </button>
+              </div>
+              <div className="text-center">
+                <div className="alert alert-danger">
+                  <h4>Oops! Something went wrong</h4>
+                  <p>{error}</p>
+                  <button className="btn btn-primary me-2" onClick={fetchTopicAndQuestions}>
+                    Try Again
+                  </button>
+                  <button className="btn btn-outline-secondary" onClick={() => navigate('/student')}>
+                    Back to Topics
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -372,7 +371,10 @@ function Quiz() {
             </div>
 
             {/* Question Card */}
-            <div className="card shadow-lg border-0 mb-5">
+            <div 
+              className="card shadow-lg border-0 mb-5"
+              style={{animation: `slideInUp 0.3s ease-out 0s both`}}
+            >
               <div className="card-body text-center p-5">
                 <h2 className="display-6 fw-bold text-dark mb-0">
                   {questions[currentQuestion]?.question_text}
@@ -381,7 +383,10 @@ function Quiz() {
             </div>
 
             {/* Record Button */}
-            <div className="text-center mb-4">
+            <div 
+              className="text-center mb-4"
+              style={{animation: `slideInUp 0.3s ease-out 0.1s both`}}
+            >
               <button 
                 className={`btn btn-lg px-5 py-4 fw-semibold ${
                   isRecording 
@@ -405,18 +410,24 @@ function Quiz() {
 
             {/* Transcription */}
             {transcription && (
-              <div className="alert alert-info border-start border-4 border-primary mb-3">
+              <div 
+                className="alert alert-info border-start border-4 border-primary mb-3"
+                style={{animation: `slideInUp 0.3s ease-out 0s both`}}
+              >
                 <strong>You said:</strong> {transcription}
               </div>
             )}
 
             {/* Feedback */}
             {feedback && (
-              <div className={`alert border-start border-4 ${
-                feedback.includes('Correct') 
-                  ? 'alert-success border-success' 
-                  : 'alert-warning border-warning'
-              }`}>
+              <div 
+                className={`alert border-start border-4 ${
+                  feedback.includes('Correct') 
+                    ? 'alert-success border-success' 
+                    : 'alert-warning border-warning'
+                }`}
+                style={{animation: `slideInUp 0.3s ease-out 0s both`}}
+              >
                 <strong>{feedback}</strong>
               </div>
             )}

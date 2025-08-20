@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useNotification, useConfirmation } from '../components/NotificationSystem';
 
 function TopicsManagement() {
   const navigate = useNavigate();
   const [topics, setTopics] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Remove loading screen entirely
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     difficulty: 'Beginner'
   });
+
+  const { showSuccess, showError, NotificationContainer } = useNotification();
+  const { confirm, ConfirmationModal } = useConfirmation();
 
   useEffect(() => {
     fetchTopics();
@@ -28,8 +33,6 @@ function TopicsManagement() {
 
   const fetchTopics = async () => {
     try {
-      setLoading(true);
-      
       const { data, error } = await supabase
         .from('topics')
         .select(`
@@ -49,9 +52,7 @@ function TopicsManagement() {
       setTopics(topicsWithCounts);
     } catch (error) {
       console.error('Error fetching topics:', error);
-      alert('Error loading topics');
-    } finally {
-      setLoading(false);
+      showError('Failed to load topics. Please try again.');
     }
   };
 
@@ -59,6 +60,8 @@ function TopicsManagement() {
     e.preventDefault();
     
     try {
+      setSaving(true);
+      
       if (editingTopic) {
         // Update existing topic
         const { error } = await supabase
@@ -67,7 +70,7 @@ function TopicsManagement() {
           .eq('id', editingTopic.id);
 
         if (error) throw error;
-        alert('Topic updated successfully!');
+        showSuccess('Topic updated successfully!');
       } else {
         // Create new topic
         const { error } = await supabase
@@ -75,7 +78,7 @@ function TopicsManagement() {
           .insert([formData]);
 
         if (error) throw error;
-        alert('Topic created successfully!');
+        showSuccess('Topic created successfully!');
       }
 
       // Reset form and close modal
@@ -85,7 +88,9 @@ function TopicsManagement() {
       fetchTopics(); // Refresh the list
     } catch (error) {
       console.error('Error saving topic:', error);
-      alert('Error saving topic');
+      showError('Failed to save topic. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -100,9 +105,14 @@ function TopicsManagement() {
   };
 
   const handleDelete = async (topic) => {
-    if (!confirm(`Are you sure you want to delete "${topic.name}"? This will also delete all questions in this topic.`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Topic',
+      message: `Are you sure you want to delete "${topic.name}"? This will also delete all ${topic.questionCount} questions in this topic.`,
+      confirmText: 'Delete',
+      confirmVariant: 'danger'
+    });
+
+    if (!confirmed) return;
 
     try {
       const { error } = await supabase
@@ -112,11 +122,11 @@ function TopicsManagement() {
 
       if (error) throw error;
       
-      alert('Topic deleted successfully!');
+      showSuccess(`Topic "${topic.name}" deleted successfully!`);
       fetchTopics(); // Refresh the list
     } catch (error) {
       console.error('Error deleting topic:', error);
-      alert('Error deleting topic');
+      showError('Failed to delete topic. Please try again.');
     }
   };
 
@@ -134,19 +144,6 @@ function TopicsManagement() {
       default: return 'secondary';
     }
   };
-
-  if (loading) {
-    return (
-      <div className="container-fluid bg-light min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="text-center">
-          <div className="spinner-border text-primary mb-3" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="text-muted">Loading topics...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container-fluid bg-light min-vh-100 py-5">
@@ -181,90 +178,98 @@ function TopicsManagement() {
         </div>
 
         {/* Topics List */}
-        {topics.length === 0 ? (
-          <div className="text-center py-5">
-            <h3 className="text-muted mb-3">No topics created yet</h3>
-            <p className="text-muted mb-4">Create your first topic to get started!</p>
-            <button 
-              className="btn btn-success btn-lg"
-              onClick={() => setShowCreateModal(true)}
-            >
-              + Create First Topic
-            </button>
-          </div>
-        ) : (
-          <div className="row g-4">
-            {topics.map((topic) => (
-              <div key={topic.id} className="col-lg-6 col-xl-4">
-                <div className="card border-0 shadow-sm h-100">
-                  <div className="card-body p-4">
-                    
-                    {/* Topic Header */}
-                    <div className="d-flex justify-content-between align-items-start mb-3">
-                      <h5 className="card-title fw-bold text-dark mb-1">
-                        {topic.name}
-                      </h5>
-                      <span className={`badge bg-${getDifficultyColor(topic.difficulty)}`}>
-                        {topic.difficulty}
-                      </span>
-                    </div>
-
-                    {/* Topic Description */}
-                    <p className="card-text text-muted small mb-3">
-                      {topic.description || 'No description provided'}
-                    </p>
-
-                    {/* Topic Stats */}
-                    <div className="mb-4">
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-muted small">Questions:</span>
-                        <span className="fw-semibold">{topic.questionCount}</span>
+        <div className={`fade-in ${topics.length > 0 ? 'show' : ''}`}>
+          {topics.length === 0 ? (
+            <div className="text-center py-5">
+              <h3 className="text-muted mb-3">No topics created yet</h3>
+              <p className="text-muted mb-4">Create your first topic to get started!</p>
+              <button 
+                className="btn btn-success btn-lg"
+                onClick={() => setShowCreateModal(true)}
+              >
+                + Create First Topic
+              </button>
+            </div>
+          ) : (
+            <div className="row g-4">
+              {topics.map((topic, index) => (
+                <div 
+                  key={topic.id} 
+                  className="col-lg-6 col-xl-4"
+                  style={{
+                    animation: `slideInUp 0.3s ease-out ${index * 0.1}s both`
+                  }}
+                >
+                  <div className="card border-0 shadow-sm h-100 hover-card">
+                    <div className="card-body p-4">
+                      
+                      {/* Topic Header */}
+                      <div className="d-flex justify-content-between align-items-start mb-3">
+                        <h5 className="card-title fw-bold text-dark mb-1">
+                          {topic.name}
+                        </h5>
+                        <span className={`badge bg-${getDifficultyColor(topic.difficulty)}`}>
+                          {topic.difficulty}
+                        </span>
                       </div>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-muted small">Created:</span>
-                        <span className="small">{new Date(topic.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
 
-                    {/* Action Buttons */}
-                    <div className="d-grid gap-2">
-                      <button 
-                        className="btn btn-primary btn-sm"
-                        onClick={() => navigate(`/admin/topics/${topic.id}/questions`)}
-                      >
-                        Manage Questions ({topic.questionCount})
-                      </button>
-                      <div className="btn-group" role="group">
+                      {/* Topic Description */}
+                      <p className="card-text text-muted small mb-3">
+                        {topic.description || 'No description provided'}
+                      </p>
+
+                      {/* Topic Stats */}
+                      <div className="mb-4">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted small">Questions:</span>
+                          <span className="fw-semibold">{topic.questionCount}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted small">Created:</span>
+                          <span className="small">{new Date(topic.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="d-grid gap-2">
                         <button 
-                          className="btn btn-outline-secondary btn-sm"
-                          onClick={() => handleEdit(topic)}
+                          className="btn btn-primary btn-sm"
+                          onClick={() => navigate(`/admin/topics/${topic.id}/questions`)}
                         >
-                          Edit
+                          Manage Questions ({topic.questionCount})
                         </button>
-                        <button 
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => handleDelete(topic)}
-                        >
-                          Delete
-                        </button>
+                        <div className="btn-group" role="group">
+                          <button 
+                            className="btn btn-outline-secondary btn-sm"
+                            onClick={() => handleEdit(topic)}
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={() => handleDelete(topic)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
       </div>
 
       {/* Create/Edit Topic Modal */}
       {showCreateModal && (
         <div className="modal fade show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg">
+              <div className="modal-header border-0">
+                <h5 className="modal-title fw-bold">
                   {editingTopic ? 'Edit Topic' : 'Create New Topic'}
                 </h5>
                 <button 
@@ -278,7 +283,7 @@ function TopicsManagement() {
                   
                   {/* Topic Name */}
                   <div className="mb-3">
-                    <label htmlFor="topicName" className="form-label">Topic Name *</label>
+                    <label htmlFor="topicName" className="form-label fw-semibold">Topic Name *</label>
                     <input
                       type="text"
                       className="form-control"
@@ -292,7 +297,7 @@ function TopicsManagement() {
 
                   {/* Description */}
                   <div className="mb-3">
-                    <label htmlFor="topicDescription" className="form-label">Description</label>
+                    <label htmlFor="topicDescription" className="form-label fw-semibold">Description</label>
                     <textarea
                       className="form-control"
                       id="topicDescription"
@@ -305,7 +310,7 @@ function TopicsManagement() {
 
                   {/* Difficulty */}
                   <div className="mb-3">
-                    <label htmlFor="topicDifficulty" className="form-label">Difficulty Level</label>
+                    <label htmlFor="topicDifficulty" className="form-label fw-semibold">Difficulty Level</label>
                     <select
                       className="form-select"
                       id="topicDifficulty"
@@ -319,19 +324,28 @@ function TopicsManagement() {
                   </div>
 
                 </div>
-                <div className="modal-footer">
+                <div className="modal-footer border-0">
                   <button 
                     type="button" 
-                    className="btn btn-secondary" 
+                    className="btn btn-outline-secondary" 
                     onClick={resetForm}
+                    disabled={saving}
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit" 
                     className="btn btn-primary"
+                    disabled={saving}
                   >
-                    {editingTopic ? 'Update Topic' : 'Create Topic'}
+                    {saving ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        {editingTopic ? 'Updating...' : 'Creating...'}
+                      </>
+                    ) : (
+                      editingTopic ? 'Update Topic' : 'Create Topic'
+                    )}
                   </button>
                 </div>
               </form>
@@ -339,6 +353,38 @@ function TopicsManagement() {
           </div>
         </div>
       )}
+
+      {/* Notification System */}
+      <NotificationContainer />
+      <ConfirmationModal />
+
+      {/* Custom Styles */}
+      <style>{`
+        .hover-card {
+          transition: all 0.2s ease-in-out;
+        }
+        .hover-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+        }
+        .fade-in {
+          opacity: 0;
+          transition: opacity 0.3s ease-in-out;
+        }
+        .fade-in.show {
+          opacity: 1;
+        }
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
