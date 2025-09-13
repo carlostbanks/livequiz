@@ -1,13 +1,14 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
-// import CasualQuizCreator from './pages/CasualQuizCreator';
-// import TakeQuiz from './pages/TakeQuiz';
+import CasualQuizCreator from './pages/CasualQuizCreator';
+import TakeQuiz from './pages/TakeQuiz';
 // import QuizResults from './pages/QuizResults';
 import Login from './pages/Login';
 import Register from './pages/Register';
 // import ProfessionalDashboard from './pages/ProfessionalDashboard';
 // import QuizManagement from './pages/QuizManagement';
 import ProtectedRoute from './components/ProtectedRoute';
+import QuizShare from './pages/QuizShare';
 
 function App() {
   return (
@@ -15,10 +16,11 @@ function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
-        {/* <Route path="/create-quiz" element={<CasualQuizCreator />} />
+        <Route path="/create-quiz" element={<CasualQuizCreator />} />
+        <Route path="/quiz/share/:shareId" element={<QuizShare />} />
         <Route path="/quiz/take/:shareId" element={<TakeQuiz />} />
-        <Route path="/quiz/results/:attemptId" element={<QuizResults />} />
-         */}
+
+
         {/* Auth routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

@@ -9,6 +9,7 @@ function CasualQuizCreator() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [generatingAnswer, setGeneratingAnswer] = useState(null);
   const [quiz, setQuiz] = useState({
     title: '',
     description: ''
@@ -28,6 +29,44 @@ function CasualQuizCreator() {
     const updated = [...questions];
     updated[index][field] = value;
     setQuestions(updated);
+  };
+
+  // AI Answer Generation Function
+  const generateAIAnswer = async (questionText, questionIndex) => {
+    if (!questionText.trim()) return;
+    
+    setGeneratingAnswer(questionIndex);
+    
+    try {
+      console.log('Generating AI answer for:', questionText);
+      
+      const response = await fetch('http://localhost:3001/generate-answer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question: questionText.trim()
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const aiAnswer = data.answer;
+        console.log('AI generated answer:', aiAnswer);
+        
+        // Update the specific question with the AI-generated answer
+        handleQuestionChange(questionIndex, 'answer_text', aiAnswer);
+        
+      } else {
+        throw new Error('Failed to generate answer');
+      }
+    } catch (aiError) {
+      console.error('Error generating AI answer:', aiError);
+      alert('Could not generate answer automatically. Please provide an answer manually.');
+    } finally {
+      setGeneratingAnswer(null);
+    }
   };
 
   const addQuestion = () => {
@@ -188,16 +227,44 @@ function CasualQuizCreator() {
 
             <div className="form-group">
               <label>Answer</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Paris"
-                value={question.answer_text}
-                onChange={(e) => handleQuestionChange(index, 'answer_text', e.target.value)}
-              />
-              <small className="form-text text-muted">
-                The AI will accept variations of this answer
-              </small>
+              <div className="answer-input-section">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Leave blank to auto-generate with AI"
+                  value={question.answer_text}
+                  onChange={(e) => handleQuestionChange(index, 'answer_text', e.target.value)}
+                />
+                {question.question_text.trim() && !question.answer_text.trim() && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary btn-sm mt-2"
+                    onClick={() => generateAIAnswer(question.question_text, index)}
+                    disabled={generatingAnswer === index}
+                  >
+                    {generatingAnswer === index ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2"></span>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-robot me-1"></i>
+                        Generate with AI
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              {question.answer_text.trim() ? (
+                <small className="form-text text-muted">
+                  Custom answer provided. The AI will accept variations of this answer
+                </small>
+              ) : (
+                <small className="form-text text-muted">
+                  💡 <strong>Leave blank</strong> and AI will generate the correct answer automatically.
+                </small>
+              )}
             </div>
           </div>
         ))}

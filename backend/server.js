@@ -558,6 +558,32 @@ app.post('/quiz-attempts', async (req, res) => {
   }
 });
 
+app.get('/quiz-attempts/quiz/:shareId', async (req, res) => {
+  try {
+    const { shareId } = req.params;
+    
+    // Get quiz first
+    const { data: quiz } = await supabase
+      .from('quizzes')
+      .select('id')
+      .eq('share_link_id', shareId)
+      .single();
+    
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    
+    // Get attempts for this quiz
+    const { data: attempts } = await supabase
+      .from('quiz_attempts')
+      .select('*')
+      .eq('quiz_id', quiz.id)
+      .order('created_at', { ascending: false });
+    
+    res.json({ attempts: attempts || [] });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch quiz attempts' });
+  }
+});
+
 // Get quiz attempts for a quiz (professional only)
 app.get('/quizzes/:quizId/attempts', authenticateToken, async (req, res) => {
   try {
