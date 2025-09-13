@@ -81,13 +81,36 @@ function TakeQuiz() {
           setTimeout(() => {
             completeQuiz();
           }, 3000); // 3 second delay to show the result
+        } else {
+          // Auto-advance to next question after 2 seconds
+          setTimeout(() => {
+            setCurrentQuestion(currentQuestion + 1);
+            setCurrentAnswer('');
+            setAnswerState(null);
+            setProcessingVoice(false);
+          }, 2000);
         }
         
       } else if (data.type === 'error') {
         console.error('WebSocket error:', data.message);
         setProcessingVoice(false);
-        setAnswerState(null);
-        alert('Error processing voice: ' + data.message);
+        setAnswerState('incorrect');
+        setCurrentAnswer(data.message || 'No answer detected');
+        
+        // Auto-advance after error
+        if (currentQuestion === questions.length - 1) {
+          console.log('Last question error, auto-completing quiz...');
+          setTimeout(() => {
+            completeQuiz();
+          }, 3000);
+        } else {
+          setTimeout(() => {
+            setCurrentQuestion(currentQuestion + 1);
+            setCurrentAnswer('');
+            setAnswerState(null);
+            setProcessingVoice(false);
+          }, 2000);
+        }
       }
     };
     
@@ -105,7 +128,7 @@ function TakeQuiz() {
         wsRef.current.close();
       }
     };
-  }, [shareId, questions, currentQuestion, answers]);
+  }, [shareId, questions]);
 
   const fetchQuizData = async () => {
     console.log('Fetching quiz data for shareId:', shareId);
@@ -160,10 +183,10 @@ function TakeQuiz() {
             processingStartTime.current = Date.now();
             sendAudioToServer(audioBlob);
           } else {
-            alert('Please hold button longer and speak.');
+            console.log('Audio too short, please try again');
           }
         } else {
-          alert('No audio detected. Please try again.');
+          console.log('No audio detected');
         }
         stream.getTracks().forEach(track => track.stop());
         clearInterval(timerRef.current);
@@ -182,7 +205,7 @@ function TakeQuiz() {
 
     } catch (error) {
       console.error('Error starting recording:', error);
-      alert('Microphone access denied. Please allow microphone access.');
+      console.log('Microphone access denied');
     }
   };
 
@@ -210,66 +233,73 @@ function TakeQuiz() {
     reader.readAsDataURL(audioBlob);
   };
 
-  const nextQuestion = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setCurrentAnswer(answers[currentQuestion + 1] || '');
-      setAnswerState(null);
-      setProcessingVoice(false);
-    } else {
-      completeQuiz();
-    }
-  };
-
-  const previousQuestion = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-      setCurrentAnswer(answers[currentQuestion - 1] || '');
-      setAnswerState(null);
-      setProcessingVoice(false);
-    }
-  };
-
   const completeQuiz = async () => {
+    console.log('Starting quiz completion...');
+    console.log('Quiz:', quiz);
+    console.log('Questions:', questions);
+    console.log('Answers:', answers);
+    console.log('Participant name:', participantName);
+    
     setSubmitting(true);
     
     try {
       // Calculate score by comparing answers
       let correctAnswers = 0;
-      const detailedAnswers = questions.map((question, index) => {
+      const detailedAnswers = [];
+      
+      for (let index = 0; index < questions.length; index++) {
+        const question = questions[index];
         const userAnswer = answers[index] || '';
         const expectedAnswer = question.answer_text || '';
         
+        console.log(`Processing question ${index}:`, {
+          question: question.question_text,
+          userAnswer,
+          expectedAnswer
+        });
+        
         // Simple scoring - check if user answer contains key words from expected answer
-        const isCorrect = scoreAnswer(userAnswer, expectedAnswer);
+        let isCorrect = false;
+        try {
+          isCorrect = scoreAnswer(userAnswer, expectedAnswer);
+        } catch (err) {
+          console.error('Error in scoreAnswer:', err);
+          isCorrect = false;
+        }
+        
         if (isCorrect) correctAnswers++;
         
-        return {
+        detailedAnswers.push({
           question_id: question.id,
           user_answer: userAnswer,
           expected_answer: expectedAnswer,
           is_correct: isCorrect
-        };
-      });
+        });
+      }
 
-      const score = Math.round((correctAnswers / questions.length) * 100);
+      const requestBody = {
+        quiz_id: quiz.id,
+        taker_name: participantName,
+        score: correctAnswers,
+        total_questions: questions.length,
+        answers_json: detailedAnswers,
+        duration_seconds: null,
+        unique_link_id: null
+      };
+
+      console.log('Submitting quiz with data:', requestBody);
 
       const response = await fetch('http://localhost:3001/quiz-attempts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          quiz_id: quiz.id,
-          participant_name: participantName,
-          answers: detailedAnswers,
-          score: score,
-          status: 'completed'
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Quiz submitted successfully:', data);
         setQuizCompleted(true);
         
         // Check if admin allows immediate results viewing
@@ -285,11 +315,13 @@ function TakeQuiz() {
           }, 4000);
         }
       } else {
-        throw new Error('Failed to submit quiz');
+        const errorText = await response.text();
+        console.error('Server response:', response.status, errorText);
+        throw new Error(`Failed to submit quiz: ${response.status} ${errorText}`);
       }
     } catch (error) {
       console.error('Error submitting quiz:', error);
-      alert('Failed to submit quiz. Please try again.');
+      console.log('Failed to submit quiz, please try again');
     } finally {
       setSubmitting(false);
     }
@@ -663,40 +695,25 @@ function TakeQuiz() {
                   </div>
                 </div>
 
-                {/* Navigation */}
-                <div className="question-navigation">
-                  <button 
-                    className="btn btn-outline-secondary"
-                    onClick={previousQuestion}
-                    disabled={currentQuestion === 0}
-                  >
-                    <i className="bi bi-arrow-left me-2"></i>
-                    Previous
-                  </button>
-                  
-                  <button 
-                    className="btn btn-primary"
-                    onClick={nextQuestion}
-                    disabled={!currentAnswer.trim() || submitting}
-                  >
-                    {submitting ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2"></span>
-                        Submitting...
-                      </>
-                    ) : currentQuestion === questions.length - 1 ? (
-                      <>
-                        Complete Quiz
-                        <i className="bi bi-check-circle ms-2"></i>
-                      </>
-                    ) : (
-                      <>
-                        Next
-                        <i className="bi bi-arrow-right ms-2"></i>
-                      </>
-                    )}
-                  </button>
-                </div>
+                {/* Show next instruction if not last question */}
+                {currentQuestion < questions.length - 1 && answerState && (
+                  <div className="next-instruction">
+                    <p className="text-muted text-center mt-3">
+                      <i className="bi bi-arrow-right me-2"></i>
+                      Moving to next question...
+                    </p>
+                  </div>
+                )}
+
+                {/* Show completion message if last question */}
+                {currentQuestion === questions.length - 1 && answerState && (
+                  <div className="completion-instruction">
+                    <p className="text-success text-center mt-3">
+                      <i className="bi bi-check-circle me-2"></i>
+                      Quiz completing automatically...
+                    </p>
+                  </div>
+                )}
               </div>
 
             </div>
