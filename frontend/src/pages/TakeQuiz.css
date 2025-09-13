@@ -338,7 +338,59 @@
   margin-bottom: 2rem;
 }
 
-/* Answer Feedback */
+/* Name Entry Card */
+.name-entry-card {
+  background: white;
+  border-radius: 1.5rem;
+  padding: 3rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+
+.name-header {
+  margin-bottom: 2rem;
+}
+
+.name-header h2 {
+  color: #2c3e50;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.name-input {
+  border: 2px solid #e9ecef;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.name-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.quiz-preview {
+  background: #f8f9fa;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: left;
+}
+
+.quiz-preview h5 {
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.preview-stats {
+  margin-top: 1rem;
+}
+
+.preview-stats .badge {
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
+}
 .answer-feedback {
   margin-top: 1.5rem;
   padding: 1rem 1.5rem;
