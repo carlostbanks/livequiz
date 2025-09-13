@@ -14,7 +14,9 @@ function Quiz() {
   const [quizComplete, setQuizComplete] = useState(false);
   const [answers, setAnswers] = useState([]);
 
-  const [answerState, setAnswerState] = useState(null);
+  const [answerState, setAnswerState] = useState(null); // null, 'processing', 'correct', 'incorrect'
+  const [showBars, setShowBars] = useState(false);
+  const [processingDuration, setProcessingDuration] = useState(0);
   
   const [questions, setQuestions] = useState([]);
   const [topicName, setTopicName] = useState('');
@@ -22,7 +24,9 @@ function Quiz() {
   const [error, setError] = useState(null);
 
   const [recordTime, setRecordTime] = useState(0);
+  const [recordingStartTime, setRecordingStartTime] = useState(null);
   const timerRef = useRef(null);
+  const processingStartTime = useRef(null);
   
   const mediaRecorderRef = useRef(null);
   const wsRef = useRef(null);
@@ -80,21 +84,24 @@ function Quiz() {
       const data = JSON.parse(event.data);
       
       if (data.type === 'transcription') {
+        const processingTime = processingStartTime.current ? 
+          ((Date.now() - processingStartTime.current) / 1000).toFixed(1) : 0;
+        
+        setProcessingDuration(processingTime);
         setTranscription(data.text);
         
         if (data.isCorrect) {
           setAnswerState('correct');
-          setFeedback('Fantastic!');
         } else {
           setAnswerState('incorrect');
-          setFeedback('Nice try!');
         }
 
         const newAnswer = {
           question: questions[currentQuestion].question_text,
           userAnswer: data.text,
           correct: data.isCorrect,
-          correctAnswer: questions[currentQuestion].answer_text
+          correctAnswer: questions[currentQuestion].answer_text,
+          duration: processingTime
         };
         
         setAnswers(prev => [...prev, newAnswer]);
@@ -103,12 +110,19 @@ function Quiz() {
           setScore(prev => prev + 1);
         }
         
+        // Hide bars and show results
+        setTimeout(() => {
+          setShowBars(false);
+        }, 1000);
+        
+        // Move to next question after showing results
         setTimeout(() => {
           if (currentQuestion < questions.length - 1) {
             setCurrentQuestion(prev => prev + 1);
             setTranscription('');
             setFeedback('');
             setAnswerState(null);
+            setProcessingDuration(0);
           } else {
             setQuizComplete(true);
             const finalScore = data.isCorrect ? score + 1 : score;
@@ -116,8 +130,10 @@ function Quiz() {
             
             saveQuizResult(finalAnswers, finalScore);
           }
-        }, 2000);
+        }, 4000);
       } else if (data.type === 'error') {
+        setShowBars(false);
+        setAnswerState(null);
         setTranscription('');
         setFeedback(data.message);
         setTimeout(() => setFeedback(''), 3000);
@@ -173,6 +189,10 @@ function Quiz() {
         if (audioChunksRef.current.length > 0) {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           if (audioBlob.size > 5000) {
+            // Start processing state
+            setAnswerState('processing');
+            setShowBars(true);
+            processingStartTime.current = Date.now();
             sendAudioToServer(audioBlob);
           } else {
             setFeedback('Please hold button longer and speak.');
@@ -186,17 +206,19 @@ function Quiz() {
         clearInterval(timerRef.current);
         setRecordTime(0);
         setIsRecording(false);
+        setRecordingStartTime(null);
       };
       
       mediaRecorderRef.current.start(100);
       setIsRecording(true);
       setFeedback('');
       setTranscription('');
+      setRecordingStartTime(Date.now());
 
       const startTime = Date.now();
       timerRef.current = setInterval(() => {
-        setRecordTime(((Date.now() - startTime) / 1000).toFixed(2));
-      }, 10);
+        setRecordTime(((Date.now() - startTime) / 1000).toFixed(1));
+      }, 100);
 
     } catch (error) {
       console.error('Error starting recording:', error);
@@ -234,6 +256,8 @@ function Quiz() {
     setTranscription('');
     setFeedback('');
     setAnswerState(null);
+    setShowBars(false);
+    setProcessingDuration(0);
   };
 
   const formattedDate = new Date().toLocaleDateString('en-US', {
@@ -359,7 +383,15 @@ function Quiz() {
   }
 
   return (
-    <div className="min-vh-100 d-flex flex-column bg-stripe">
+    <div className="min-vh-100 d-flex flex-column bg-stripe position-relative">
+      
+      {/* Processing Bars */}
+      {showBars && (
+        <div className="processing-bars">
+          <div className={`processing-bar left-bar ${answerState === 'correct' ? 'correct' : answerState === 'incorrect' ? 'incorrect' : ''}`}></div>
+          <div className={`processing-bar right-bar ${answerState === 'correct' ? 'correct' : answerState === 'incorrect' ? 'incorrect' : ''}`}></div>
+        </div>
+      )}
       
       {/* Header Section */}
       <div className="header-container py-4">
@@ -384,39 +416,58 @@ function Quiz() {
       </div>
       
       {/* Main Content Section */}
-      <div className={`content-wrapper flex-grow-1 d-flex flex-column py-5 ${answerState === 'correct' ? 'bg-correct' : answerState === 'incorrect' ? 'bg-incorrect' : ''}`}>
+      <div className="content-wrapper flex-grow-1 d-flex flex-column py-5">
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-lg-8">
             
-              {answerState ? (
-                <div 
-                  key={currentQuestion}
-                  className={`card shadow-sm border-0 rounded-3 question-card text-center feedback-card`}
-                  style={{ minHeight: '150px' }}
-                >
-                  <div className="card-body p-5 d-flex flex-column justify-content-center align-items-center">
-                    <div className="answer-icon mb-3">
-                      <i className={`bi bi-${answerState === 'correct' ? 'check-circle-fill' : 'x-circle-fill'}`}></i>
-                    </div>
-                    <h1 className="fw-bold display-4 mb-0 text-dark">{feedback}</h1>
-                  </div>
+              {/* Question Card */}
+              <div 
+                key={`question-${currentQuestion}`}
+                className="card shadow-sm border-0 rounded-3 question-card text-center"
+                style={{ minHeight: '150px' }}
+              >
+                <div className="card-body p-5 d-flex flex-column justify-content-center">
+                  <h2 className="display-6 fw-bold mb-0 text-dark">
+                    {questions[currentQuestion]?.question_text}
+                  </h2>
                 </div>
-              ) : (
-                <>
-                  <div 
-                    key={currentQuestion}
-                    className={`card shadow-sm border-0 rounded-3 question-card text-center`}
-                    style={{ minHeight: '150px' }}
-                  >
-                    <div className="card-body p-5 d-flex flex-column justify-content-center">
-                      <h2 className="display-6 fw-bold mb-0 text-dark">
-                        {questions[currentQuestion]?.question_text}
-                      </h2>
+              </div>
+
+              {/* Button or Results */}
+              <div className="text-center mt-5">
+                {answerState && answerState !== 'processing' ? (
+                  // Show results
+                  <div className="results-section">
+                    <div className={`result-status ${answerState}`}>
+                      <h1 className="display-4 fw-bold mb-4">
+                        {answerState === 'correct' ? 'Correct!' : 'Incorrect'}
+                      </h1>
+                    </div>
+                    
+                    <div className="result-details">
+                      <div className="detail-item">
+                        <span className="detail-label">Duration:</span>
+                        <span className="detail-value">{processingDuration}s</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">You said:</span>
+                        <span className="detail-value">"{transcription}"</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Correct Answer:</span>
+                        <span className="detail-value">{questions[currentQuestion]?.answer_text}</span>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="text-center mt-5 mb-2">
+                ) : answerState === 'processing' ? (
+                  // Show processing state
+                  <div className="processing-state">
+                    <h3 className="text-muted">Processing your answer...</h3>
+                  </div>
+                ) : (
+                  // Show record button
+                  <>
                     <button 
                       className={`btn btn-lg px-5 py-4 fw-semibold border-0 ${
                         isRecording 
@@ -436,33 +487,21 @@ function Quiz() {
                       <i className={`bi bi-mic${isRecording ? '-fill' : ''} me-2`}></i>
                       {isRecording ? 'Recording...' : 'Hold to Speak'}
                     </button>
-                  </div>
-                  {isRecording && (
-                      <div className="text-center fw-normal fs-3 text-muted" style={{ minHeight: '1.5rem' }}>
-                          {recordTime}s
+                    
+                    {isRecording && (
+                      <div className="text-center fw-normal fs-3 text-muted mt-3">
+                        {recordTime}s
                       </div>
-                  )}
-                  
-                  {feedback && !isRecording && (
-                      <div 
-                        className="text-center text-danger fw-semibold" 
-                        style={{ minHeight: '1.5rem' }}
-                      >
+                    )}
+                    
+                    {feedback && !isRecording && (
+                      <div className="text-center text-danger fw-semibold mt-3">
                         {feedback}
                       </div>
-                  )}
-                  
-                  {transcription && (
-                    <div 
-                      className="shadow-sm py-3 px-4 rounded-3 mt-3"
-                      style={{animation: `slideInUp 0.3s ease-out 0s both`, backgroundColor: 'white'}}
-                    >
-                      <div className="fw-semibold text-dark">You said:</div>
-                      <div className="text-secondary">{transcription}</div>
-                    </div>
-                  )}
-                </>
-              )}
+                    )}
+                  </>
+                )}
+              </div>
             
             </div>
           </div>
@@ -474,20 +513,14 @@ function Quiz() {
         
         * { font-family: 'Inter', sans-serif; }
 
-        body {
-            margin: 0;
-            padding: 0;
-        }
+        body { margin: 0; padding: 0; }
 
         .min-vh-100 { min-height: 100vh; }
         .d-flex { display: flex; }
         .flex-column { flex-direction: column; }
         .flex-grow-1 { flex-grow: 1; }
         
-        .bg-stripe { background-color: #F9F9FB !important; transition: background-color 0.5s ease-in-out; }
-        .bg-correct { background-color: #28A745 !important; transition: background-color 0.5s ease-in-out; }
-        .bg-incorrect { background-color: #DC3545 !important; transition: background-color 0.5s ease-in-out; }
-        
+        .bg-stripe { background-color: #F9F9FB !important; }
         .text-primary { color: #009C6B !important; }
         .text-secondary { color: #6C757D !important; }
         .text-dark { color: #212529 !important; }
@@ -498,29 +531,18 @@ function Quiz() {
         .btn { border-radius: 8px; font-weight: 500; }
         .btn-primary { background-color: #009C6B !important; color: white !important; border-color: #009C6B !important; transition: all 0.2s ease-in-out; }
         .btn-primary:hover { background-color: #007A54 !important; border-color: #007A54 !important; }
-        
         .btn-outline-secondary { color: #6C757D !important; border-color: #E0E0E0 !important; font-weight: 500; }
         .btn-outline-secondary:hover { background-color: #E0E0E0 !important; }
-        
         .btn-danger { background-color: #DC3545 !important; border-color: #DC3545 !important; color: white !important; }
         .btn-danger:hover { background-color: #C82333 !important; border-color: #C82333 !important; }
 
-        .btn-white-text {
-            color: white !important;
-            border-color: white !important;
-            background-color: transparent !important;
-        }
-
         .header-container {
-            width: 100%;
-            background-color: #F9F9FB;
-            border-bottom: 2px solid #E0E0E0;
+          width: 100%;
+          background-color: #F9F9FB;
+          border-bottom: 2px solid #E0E0E0;
         }
 
-        .card { 
-          border-radius: 12px; 
-          transition: all 0.5s ease-in-out; 
-        }
+        .card { border-radius: 12px; }
         
         .pulsing-btn { animation: pulse-border 1.5s infinite; }
         @keyframes pulse-border {
@@ -530,61 +552,150 @@ function Quiz() {
         }
 
         .summary-item {
-            background-color: white;
-            border: 1px solid #E9ECEF;
-            transition: all 0.2s ease-in-out;
+          background-color: white;
+          border: 1px solid #E9ECEF;
+          transition: all 0.2s ease-in-out;
         }
 
         .summary-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-
-        .summary-correct {
-            border-left: 4px solid #28A745;
-        }
-        
-        .summary-incorrect {
-            border-left: 4px solid #DC3545;
-        }
-        
-        @keyframes slideInUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
 
         .question-card {
-            animation: slideInFromRight 0.5s ease-out forwards;
-        }
-
-        .feedback-card {
-            animation: none;
+          animation: slideInFromRight 0.5s ease-out forwards;
         }
 
         @keyframes slideInFromRight {
-            0% { transform: translateX(100%); opacity: 0; }
-            100% { transform: translateX(0); opacity: 1; }
+          0% { transform: translateX(100%); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
         }
 
-        .answer-icon {
-            font-size: 8rem;
-            animation: zoomIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-        }
-        
-        .bg-correct .answer-icon {
-          color: white;
-        }
-        .bg-incorrect .answer-icon {
-          color: white;
-        }
-
-        .feedback-card .text-dark {
-          color: #212529 !important;
+        /* Processing Bars */
+        .processing-bars {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 30px;
+          z-index: 1000;
+          pointer-events: none;
         }
 
-        @keyframes zoomIn {
-            from { transform: scale(0.5); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
+        .processing-bar {
+          position: absolute;
+          bottom: 0;
+          height: 30px;
+          background-color: #6C757D;
+          animation: slideIn 0.8s ease-out forwards;
+        }
+
+        .processing-bar.correct {
+          background-color: #28A745;
+        }
+
+        .processing-bar.incorrect {
+          background-color: #DC3545;
+        }
+
+        .left-bar {
+          left: 0;
+          width: 50%;
+          transform: translateX(-100%);
+        }
+
+        .right-bar {
+          right: 0;
+          width: 50%;
+          transform: translateX(100%);
+        }
+
+        @keyframes slideIn {
+          to {
+            transform: translateX(0);
+          }
+        }
+
+        /* Results Section */
+        .results-section {
+          max-width: 500px;
+          margin: 0 auto;
+          animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        .result-status {
+          margin-bottom: 2rem;
+        }
+
+        .result-status.correct {
+          color: #28A745;
+        }
+
+        .result-status.incorrect {
+          color: #DC3545;
+        }
+
+        .result-details {
+          background: white;
+          border-radius: 12px;
+          padding: 2rem;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+          text-align: left;
+        }
+
+        .detail-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 1rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid #E9ECEF;
+        }
+
+        .detail-item:last-child {
+          margin-bottom: 0;
+          padding-bottom: 0;
+          border-bottom: none;
+        }
+
+        .detail-label {
+          font-weight: 600;
+          color: #495057;
+          min-width: 140px;
+        }
+
+        .detail-value {
+          color: #212529;
+          text-align: right;
+          flex: 1;
+          margin-left: 1rem;
+        }
+
+        .processing-state {
+          animation: fadeInUp 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .detail-item {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .detail-value {
+            margin-left: 0;
+            margin-top: 0.5rem;
+            text-align: left;
+          }
         }
       `}</style>
     </div>

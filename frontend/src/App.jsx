@@ -1,23 +1,45 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
-import StudentDashboard from './pages/StudentDashboard';
-import Quiz from './pages/Quiz';
-import AdminDashboard from './pages/AdminDashboard';
-import TopicsManagement from './pages/TopicsManagement';
-import QuestionsManagement from './pages/QuestionsManagement';
-import ResultsViewer from './pages/ResultsViewer';
+// import CasualQuizCreator from './pages/CasualQuizCreator';
+// import TakeQuiz from './pages/TakeQuiz';
+// import QuizResults from './pages/QuizResults';
+import Login from './pages/Login';
+import Register from './pages/Register';
+// import ProfessionalDashboard from './pages/ProfessionalDashboard';
+// import QuizManagement from './pages/QuizManagement';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
     <Router>
       <Routes>
+        {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
-        <Route path="/student" element={<StudentDashboard />} />
-        <Route path="/quiz/:topicId" element={<Quiz />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/topics" element={<TopicsManagement />} />
-        <Route path="/admin/topics/:topicId/questions" element={<QuestionsManagement />} />
-        <Route path="/admin/results" element={<ResultsViewer />} />
+        {/* <Route path="/create-quiz" element={<CasualQuizCreator />} />
+        <Route path="/quiz/take/:shareId" element={<TakeQuiz />} />
+        <Route path="/quiz/results/:attemptId" element={<QuizResults />} />
+         */}
+        {/* Auth routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        
+        {/* Professional routes (protected) */}
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              {/* <ProfessionalDashboard /> */}
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/quiz/manage/:quizId" 
+          element={
+            <ProtectedRoute>
+              {/* <QuizManagement /> */}
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </Router>
   );

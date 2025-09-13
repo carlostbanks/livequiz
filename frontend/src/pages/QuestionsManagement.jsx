@@ -149,39 +149,38 @@ function QuestionsManagement() {
 
     if (!confirmed) return;
 
+    // Optimistically update the UI by removing the question and re-ordering the rest
+    const remainingQuestions = questions.filter(q => q.id !== question.id);
+    const updates = remainingQuestions.map((q, index) => ({
+      ...q,
+      order_index: index + 1
+    }));
+    
+    setQuestions(updates);
+
     try {
-      // Delete the question
-      const { error } = await supabase
+      // First, delete the question from the database
+      const { error: deleteError } = await supabase
         .from('questions')
         .delete()
         .eq('id', question.id);
-
-      if (error) throw error;
       
-      // Get remaining questions and renumber them
-      const { data: remainingQuestions, error: fetchError } = await supabase
+      if (deleteError) throw deleteError;
+
+      // Then, update the order_index of the remaining questions in the database
+      const { error: upsertError } = await supabase
         .from('questions')
-        .select('*')
-        .eq('topic_id', topicId)
-        .order('order_index');
-
-      if (fetchError) throw fetchError;
-
-      // Renumber all remaining questions sequentially
-      for (let i = 0; i < remainingQuestions.length; i++) {
-        const { error: updateError } = await supabase
-          .from('questions')
-          .update({ order_index: i + 1 })
-          .eq('id', remainingQuestions[i].id);
-
-        if (updateError) throw updateError;
-      }
+        .upsert(updates);
       
+      if (upsertError) throw upsertError;
+
       showSuccess('Question deleted successfully!');
-      fetchTopicAndQuestions(); // Refresh the list
+      
     } catch (error) {
       console.error('Error deleting question:', error);
       showError('Failed to delete question. Please try again.');
+      // If the database operation fails, revert the UI state
+      fetchTopicAndQuestions();
     }
   };
 
@@ -206,7 +205,7 @@ function QuestionsManagement() {
     const [movedQuestion] = newQuestions.splice(questionIndex, 1);
     newQuestions.splice(newIndex, 0, movedQuestion);
 
-    // Update the order_index for ALL questions in the new array
+    // Update the order_index values in the new array
     const updates = newQuestions.map((q, index) => ({
         ...q, // Spread the entire question object to keep all its data
         order_index: index + 1
